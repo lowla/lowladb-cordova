@@ -1,0 +1,26 @@
+<?xml version='1.0' encoding='utf-8'?>
+<plugin id="io.lowla.lowladb" version="0.0.1" xmlns="http://apache.org/cordova/ns/plugins/1.0" xmlns:android="http://schemas.android.com/apk/res/android">
+    <name>LowlaDB</name>
+	<author>Mark Dixon, mark_dixon@lowla.io</author>
+	<description>LowlaDB plugin for Apache Cordova</description>
+	<license>MIT License</license>
+	<platform name="osx">
+	</platform>
+	<platform name="ios">
+        <config-file target="config.xml" parent="/*">
+            <feature name="LowlaDB">
+                <param name="ios-package" value="LDBCordova"/>
+            </feature>
+        </config-file>
+
+
+        <header-file src="src/ios/LDBCordova.h" />
+        <source-file src="src/ios/LDBCordova.m" />
+
+        <framework src="src/ios/LowlaDB.framework" custom="true"/>
+
+	</platform>
+    <js-module name="LowlaDB" src="www/LowlaDB-Cordova.js">
+        <clobbers target="cordova.plugins.LowlaDB" />
+    </js-module>
+</plugin>

@@ -1,0 +1,6 @@
+framework module LowlaDB {
+  umbrella header "LowlaDB.h"
+
+  export *
+  module * { export * }
+}
