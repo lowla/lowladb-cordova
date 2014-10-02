@@ -3,30 +3,23 @@
 The LowlaDB Cordova plugin is available for iOS only and requires iOS 8. Support for other platforms is on the roadmap, starting with Android.
 
 ## Creating a Project with LowlaDB
-The plugin will be available via the Cordova Plugin Registry, but it is currently only available for local installation.
-
-### 1. Clone the plugin
-```bash
-git clone https://github.com/lowla/lowladb-cordova.git
-```
-
-### 2. Create a new project
+### 1. Create a new project
 ```bash
 cordova create LowlaTest
 cd LowlaTest
 ```
 
-### 3. Add iOS support to the project
+### 2. Add iOS support to the project
 ```bash
 cordova platform add ios
 ```
 
-### 4. Add the plugin to the project
+### 3. Add the plugin to the project
 ```bash
-cordova plugin add ../lowladb-cordova
+cordova plugin add io.lowla.lowladb
 ```
 
-### 5. Update project settings
+### 4. Update project settings
 LowlaDB is packaged as an iOS framework and thus requires iOS 8. To set this, open the project in XCode
 ```bash
 open platforms/ios/HelloCordova.xcodeproj
@@ -36,7 +29,7 @@ Still in the _General_ tab, scroll down until the _Embedded Binaries_ section is
 
 You should now be able to build the project cleanly.
 
-### 6. Add some test code
+### 5. Add some test code
 Navigate to www/js/index.js in the project tree. Under the line
 ```javascript
         receivedElement.setAttribute('style', 'display:block;');
@@ -54,5 +47,5 @@ To copy the test code to the iOS project, return to the command line and enter
 cordova prepare ios
 ```
 
-### 7. Build and run
+### 6. Build and run
 At this point you should be able to build and run the project, either on the simulator or on a device. If everything is working correctly then you should see the usual Cordova startup screen with the LowlaDB version in place of the standard 'Device is ready' message.
