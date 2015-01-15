@@ -7,3 +7,9 @@
 //
 
 #import "LowlaDB/LDBClient.h"
+#import "LowlaDB/LDBCollection.h"
+#import "LowlaDB/LDBCursor.h"
+#import "LowlaDB/LDBDb.h"
+#import "LowlaDB/LDBObject.h"
+#import "LowlaDB/LDBObjectBuilder.h"
+#import "LowlaDB/LDBObjectId.h"

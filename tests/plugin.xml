@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
+    xmlns:rim="http://www.blackberry.com/ns/widgets"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    id="io.lowla.lowladb.tests"
+    version="0.0.1">
+    <name>LowlaDB Cordova Plugin Tests</name>
+    <license>MIT</license>
+
+    <js-module src="tests.js" name="tests">
+    </js-module>
+    
+    <js-module src="jasmine-then.js" name="jasmine-then">
+      <clobbers target="JasmineThen" />
+    </js-module>
+</plugin>
