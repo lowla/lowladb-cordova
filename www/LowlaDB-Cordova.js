@@ -45,6 +45,7 @@ var exec = require('cordova/exec');
   LowlaDB.DB = DB;
   DB.prototype.collection = collection;
   DB.prototype.collectionNames = collectionNames;
+  DB.prototype.dropDatabase = dropDatabase;
 
   function DB(lowla, dbName) {
     this.name = dbName;
@@ -117,18 +118,45 @@ var exec = require('cordova/exec');
       throw err;
     }
   }
+  
+  function dropDatabase(callback) {
+     var db = this;
+     return new Promise(function(resolve, reject) {
+       var successCallback = function () {resolve();};
+       var failureCallback = function (err) {reject(err);};
+       exec(successCallback, failureCallback, 'LowlaDB', 'db_dropDatabase', [db.name]);
+     })
+      .then(function () {
+        if (callback) {
+          callback(null);
+        }
+     })
+      .catch(function (e) {
+        if (callback) {
+          callback(e);
+        }
+        throw e;
+       });
+  }
 })(module.exports);
 
 // Collection
 (function(LowlaDB) {
   LowlaDB.Collection = Collection;
 
+  Collection.prototype.count = count;
+  Collection.prototype.find = find;
   Collection.prototype.insert = insert;
   
   function Collection(lowla, dbName, collectionName) {
     this.dbName = dbName;
     this.collectionName = collectionName;
     this.lowla = lowla;
+  }
+  
+  function find(filter) {
+    /*jshint validthis:true */
+    return LowlaDB.Cursor(this, filter);
   }
   
   function insert(arg, callback) {
@@ -154,6 +182,181 @@ var exec = require('cordova/exec');
       });
   }
   
+  function count(query, callback) {
+    /*jshint validthis:true */
+    if (typeof(query) === 'function') {
+      callback = query;
+      query = {};
+    }
+
+    return this.find(query).count(callback);
+  }
+  
+})(module.exports);
+
+// Cursor
+(function (LowlaDB) {
+  'use strict';
+
+  // Public API
+  LowlaDB.Cursor = Cursor;
+
+  Cursor.prototype.count = count;
+  Cursor.prototype.each = each;
+  Cursor.prototype.limit = limit;
+  Cursor.prototype.sort = sort;
+  Cursor.prototype.showPending = showPending;
+  Cursor.prototype.toArray = toArray;
+
+  Cursor.prototype.on = on;
+  Cursor.notifyLive = notifyLive;
+  Cursor.prototype.cloneWithOptions = cloneWithOptions;
+
+  ///////////////
+
+  function Cursor(collection, filter, options) {
+    if (!(this instanceof Cursor)) {
+      return new Cursor(collection, filter, options);
+    }
+
+    this._lowla = collection.lowla;
+    this._collection = collection;
+    this._filter = filter;
+    this._options = {
+      sort: null,
+      limit: 0,
+      showPending: false
+    };
+
+    for (var i in options) {
+      if (options.hasOwnProperty(i)) {
+        this._options[i] = options[i];
+      }
+    }
+  }
+
+  function notifyLive(coll) {
+    var key = coll.dbName + '.' + coll.collectionName;
+    if (!coll.lowla.liveCursors[key]) {
+      return;
+    }
+
+    coll.lowla.liveCursors[key].forEach(function (watcher) {
+      watcher.callback(null, watcher.cursor);
+    });
+  }
+
+  function on(callback) {
+    /* jshint validthis:true */
+    var coll = this._collection;
+    var key = coll.dbName + '.' + coll.collectionName;
+    if (!coll.lowla.liveCursors[key]) {
+      coll.lowla.liveCursors[key] = [];
+    }
+
+    coll.lowla.liveCursors[key].push({cursor: this, callback: callback});
+    callback(null, this);
+  }
+
+  function cloneWithOptions(options) {
+    /* jshint validthis:true */
+    var answer = new Cursor(this._collection, this._filter);
+    answer._options = this._options;
+    for (var i in options) {
+      if (options.hasOwnProperty(i)) {
+        answer._options[i] = options[i];
+      }
+    }
+
+    return answer;
+  }
+
+  function limit(amount) {
+    /* jshint validthis:true */
+    return this.cloneWithOptions({limit: amount});
+  }
+
+  function sort(keyOrList) {
+    /* jshint validthis:true */
+    return this.cloneWithOptions({sort: keyOrList});
+  }
+
+  function showPending() {
+    /* jshint validthis:true */
+    return this.cloneWithOptions({showPending: true});
+  }
+
+  function each(callback) {
+    /* jshint validthis:true */
+    if (!callback) {
+      return;
+    }
+
+    try {
+      this._applyFilter().then(function (arr) {
+        arr.forEach(function (doc) {
+          callback(null, doc.document);
+        });
+      });
+    }
+    catch (e) {
+      callback(e);
+    }
+  }
+
+  function toArray(callback) {
+    /* jshint validthis:true */
+    var cursor = this;
+    return Promise.resolve()
+      .then(function () {
+        return cursor._applyFilter();
+      })
+      .then(function (filtered) {
+        filtered = filtered.map(function (doc) {
+          return doc.document;
+        });
+        if (callback) {
+          callback(null, filtered);
+        }
+        return filtered;
+      }, function (err) {
+        if (callback) {
+          callback(err);
+        }
+        throw err;
+      });
+  }
+
+  function count(applySkipLimit, callback) {
+    /* jshint validthis:true */
+    if (typeof(applySkipLimit) === 'function') {
+      callback = applySkipLimit;
+      applySkipLimit = false;
+    }
+
+    var cursor = this;
+    if (!applySkipLimit) {
+      cursor = this.cloneWithOptions({skip: 0, limit: 0});
+    }
+
+    return new Promise(function(resolve, reject) {
+      var successCallback = function (count) {resolve(count);};
+      var failureCallback = function (err) {reject(err);};
+      exec(successCallback, failureCallback, 'LowlaDB', 'cursor_count', [cursor]);
+    })
+      .then(function(count) {
+        if (callback) {
+          callback(null, count);
+        }
+        return count;
+      })
+      .catch(function(e) {
+        if (callback) {
+          callback(e);
+        }
+        throw e;
+      });
+  }
 })(module.exports);
 
 // Utils

@@ -13,7 +13,9 @@
 
 @interface LDBCursor : NSObject
 - (id)initWithCollection:(LDBCollection *)coll query:(LDBObject *)query keys:(LDBObject *)keys;
+- (LDBCursor *)limit:(int)limit;
 - (BOOL)hasNext;
 - (LDBObject *)next;
 - (LDBObject *)one;
+- (int64_t)count;
 @end

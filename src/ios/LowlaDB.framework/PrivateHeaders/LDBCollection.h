@@ -25,6 +25,7 @@
 - (LDBCursor *)find:(LDBObject *)query;
 - (LDBObject *)findOne:(LDBObject *)query;
 - (LDBWriteResult *)insert:(LDBObject *)object;
+- (LDBWriteResult *)insertArray:(NSArray *)arr;
 - (LDBWriteResult *)save:(LDBObject *)object;
 - (LDBWriteResult *)update:(LDBObject *)query object:(LDBObject *)object;
 - (LDBWriteResult *)update:(LDBObject *)query object:(LDBObject *)object upsert:(BOOL)upsert multi:(BOOL)multi;

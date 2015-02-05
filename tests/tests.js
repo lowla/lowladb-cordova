@@ -27,9 +27,12 @@ exports.defineAutoTests = function() {
       var theDB, coll, collTwo;
       spec.beforeEach(function () {
         theDB = lowla.db('dbName');
-        coll = lowla.collection('dbName', 'collectionOne');
-        collTwo = lowla.collection('dbName', 'collectionTwo');
-        return Promise.all([coll.insert({a: 1}), collTwo.insert({b: 2})]);
+        return theDB.dropDatabase()
+          .then(function () {
+            coll = lowla.collection('dbName', 'collectionOne');
+            collTwo = lowla.collection('dbName', 'collectionTwo');
+            return Promise.all([coll.insert({a: 1}), collTwo.insert({b: 2})]);
+          });
       });
 
       spec.it('can retrieve all collection names', function () {
@@ -63,4 +66,50 @@ exports.defineAutoTests = function() {
       });
     });
   });
+  
+  describe('LowlaDB Collection (Cordova)', function (done) {
+    var spec = new JasmineThen.Spec(this);
+
+    spec.beforeEach(function () {
+      window.lowla = new LowlaDB();
+    });
+    
+    spec.afterEach(function () {
+      lowla.close();
+    });
+
+    describe('count()', function () {
+      var spec = new JasmineThen.Spec(this);
+      
+      spec.it('can count the documents in a collection', function () {
+        var coll = lowla.collection('dbName', 'TestColl');
+        return coll
+          .insert([{a: 1}, {a: 2}, {a: 3}])
+          .then(function () {
+            return coll.count();
+          })
+          .then(function (count) {
+            expect(count).toEqual(3);
+            return coll.count({a: 2});
+          })
+          .then(function (count) {
+            expect(count).toEqual(1);
+            return coll.count({});
+          })
+          .then(function (count) {
+            expect(count).toEqual(3);
+            return coll.count({z: 5});
+          })
+          .then(function (count) {
+            expect(count).toEqual(0);
+          })
+          .then(function () {
+            coll.count(function (err, count) {
+              should.not.exist(err);
+              count.should.equal(3);
+            });
+          });
+      });
+    });
+  });  
 };

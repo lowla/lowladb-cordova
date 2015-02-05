@@ -11,6 +11,8 @@
 @class LDBObjectId;
 
 @interface LDBObject : NSObject
++ (id)objectWithDictionary:(NSDictionary *)dict;
+
 - (id)initWithData:(NSData *)data;
 
 - (BOOL)containsField:(NSString *)field;
