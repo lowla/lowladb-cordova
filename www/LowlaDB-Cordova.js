@@ -316,7 +316,7 @@ var exec = require('cordova/exec');
     return new Promise(function(resolve, reject) {
       var successCallback = function (doc) {
         if (doc) {
-          callback(null, doc);
+          callback(null, JSON.parse(doc));
         }
         else {
           resolve();
@@ -342,7 +342,7 @@ var exec = require('cordova/exec');
         }
         throw err;
       }
-      answer.push(JSON.parse(doc));
+      answer.push(doc);
     })
       .then(function () {
         if (callback) {

@@ -263,4 +263,91 @@ exports.defineAutoTests = function() {
       });
     });
   });
+  
+  describe('LowlaDB Cursor (Cordova)', function (done) {  
+    var spec = new JasmineThen.Spec(this);
+    
+    var coll, coll2;
+    spec.beforeEach(function () {      
+      coll = lowla.collection('dbName', 'TestColl');
+      coll2 = lowla.collection('dbName', 'OtherColl');
+
+      var theDB = lowla.db('dbName');
+      return theDB.dropDatabase()
+        .then(function () {
+          return Promise.all([
+            coll.insert([{a: 1}, {a: 2}, {a: 3}]),
+            coll2.insert([{b: 7, c: 'a', x: 1, s: 5}, {b: 12, c: 'q', y: 2, s: 5}, {b: 3, c: 'f', z: 3, s: 5}])
+          ]);
+        });
+    });
+    
+    describe('Constructor', function () {
+      var spec = new JasmineThen.Spec(this);
+      
+      spec.it('sets default options', function () {
+        var check = new LowlaDB.Cursor(coll, {});
+        expect(check._options.sort).toBeNull();
+        expect(check._options.limit).toEqual(0);
+        expect(check._options.showPending).toBe(false);
+      });
+
+      spec.it('merges provided options with defaults', function () {
+        var check = new LowlaDB.Cursor(coll, {}, {limit: 10});
+        expect(check._options.sort).toBeNull();
+        expect(check._options.limit).toEqual(10);
+        expect(check._options.showPending).toBe(false);
+      });
+    });
+
+    describe('toArray()', function () {
+      var spec = new JasmineThen.Spec(this);
+      
+      spec.it('can find no matching documents', function () {
+        var cursor = coll.find({z: 1});
+        cursor
+          .toArray()
+          .then(function (arr) {
+            expect(arr.length).toEqual(0);
+            cursor.toArray(function (err, arr) {
+              expect(err).toBeNull();
+              expect(arr.length).toEqual(0);
+            });
+          });
+      });
+
+      spec.it('only finds documents in the correct collection', function () {
+        return coll
+          .find()
+          .toArray()
+          .then(function (arr) {
+            expect(arr.length).toEqual(3);
+            expect(arr[0].a).toBeDefined();
+            expect(arr[1].a).toBeDefined();
+            expect(arr[2].a).toBeDefined();
+          });
+      });
+    });
+
+    describe('each()', function () {
+      var spec = new JasmineThen.Spec(this);
+      
+      spec.it('can enumerate documents', function () {
+        var docs = [];
+        return coll.find().each(function (err, doc) {
+          docs.push(doc);
+        })
+          .then(function () {
+            expect(docs.length).toEqual(3);
+            expect(docs[0].a).toEqual(1);
+            expect(docs[1].a).toEqual(2);
+            expect(docs[2].a).toEqual(3);
+          });
+      });
+
+      spec.it('does nothing with no callback', function () {
+        coll.find().each();
+      });
+    });
+  });
 };
