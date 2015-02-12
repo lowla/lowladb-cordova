@@ -38,6 +38,7 @@ exports.defineAutoTests = function() {
       spec.it('can retrieve all collection names', function () {
         return theDB.collectionNames().then(function (names) {
           expect(names.length).toEqual(2);
+          names.sort(function (a, b) { return a.name.localeCompare(b.name); });
           expect(names[0].name).toEqual('dbName.collectionOne');
           expect(names[1].name).toEqual('dbName.collectionTwo');
         });
@@ -72,6 +73,8 @@ exports.defineAutoTests = function() {
 
     spec.beforeEach(function () {
       window.lowla = new LowlaDB();
+      theDB = lowla.db('dbName');
+      return theDB.dropDatabase();
     });
     
     spec.afterEach(function () {
@@ -105,11 +108,159 @@ exports.defineAutoTests = function() {
           })
           .then(function () {
             coll.count(function (err, count) {
-              should.not.exist(err);
-              count.should.equal(3);
+              expect(err).toBeNull();
+              expect(count).toEqual(3);
             });
           });
       });
     });
-  });  
+    
+    describe('find()', function (done) {
+      var spec = new JasmineThen.Spec(this);
+      
+      spec.it('with no documents in datastore works without error', function () {
+        var coll = lowla.collection('dbName', 'CollName');
+        return coll.find({}).toArray()
+          .then(function (docs) {
+            expect(docs).not.toBeNull();
+            expect(docs.length).toEqual(0);
+          })
+          .then(function () {
+            coll.find({}).toArray(function (err, docs) {
+              expect(err).toBeNull();
+              expect(docs).not.toBeNull();
+              expect(docs.length).toEqual(0);
+            });
+         });
+      });
+
+      spec.it('with no matching documents works without error', function () {
+        var coll = lowla.collection('dbName', 'CollName');
+          return coll.insert([{a: 1}, {b: 2}])
+          .then(function () {
+            return coll.find({a: 2}).toArray();
+          })
+          .then(function (docs) {
+            expect(docs).not.toBeNull();
+            expect(docs.length).toEqual(0);
+          })
+          .then(function () {
+            coll.find({a: 2}).toArray(function (err, docs) {
+              expect(err).toBeNull();
+              expect(docs).not.toBeNull();
+              expect(docs.length).toEqual(0);
+            });
+          });
+      });
+      
+      spec.it('finds multiple documents', function () {
+        var coll = lowla.collection('dbName', 'CollName');
+        return coll.insert([{a: 1}, {b: 2}, {c: 3}, {d: 4}])
+          .then(function () {
+            return coll.find().toArray();
+          })
+          .then(function (docs) {
+            expect(docs.length).toEqual(4);
+            expect(docs[0].a).toEqual(1);
+            expect(docs[1].b).toEqual(2);
+            expect(docs[2].c).toEqual(3);
+            expect(docs[3].d).toEqual(4);
+          })
+      });
+             
+      spec.it('finds a single document among many', function () {
+        var coll = lowla.collection('dbName', 'CollName');
+        return coll.insert([{a: 1}, {b: 2}, {c: 3}, {d: 4}])
+          .then(function () {
+            return coll.find({c: 3}).toArray();
+          })
+          .then(function (docs) {
+            expect(docs.length).toEqual(1);
+            expect(docs[0].c).toEqual(3);
+          })
+          .then(function () {
+            coll.find({d: 4}).toArray(function (err, docs) {
+              expect(err).toBeNull();
+              expect(docs).not.toBeNull();
+              expect(docs.length).toEqual(1);
+              expect(docs[0].d).toEqual(4);
+            });
+          });
+      });
+
+      spec.it('only retrieves documents from the given collection', function () {
+        var coll = lowla.collection('dbName', 'One');
+        var collTwo = lowla.collection('dbName', 'Two');
+        return coll.insert({a: 1})
+          .then(function () {
+            return collTwo.insert({a: 2});
+          })
+          .then(function () {
+            return coll.find().toArray();
+          })
+          .then(function (arr) {
+            expect(arr).not.toBeNull();
+            expect(arr.length).toEqual(1);
+            expect(arr[0].a).toEqual(1);
+          });
+      });
+    });
+
+    describe('findOne()', function (done) {
+      var spec = new JasmineThen.Spec(this);
+      
+      var coll;
+      spec.beforeEach(function () {
+        coll = lowla.collection('dbName', 'CollName');
+      });
+
+      spec.it('finds nothing without error', function () {
+        return coll.findOne({a: 1})
+          .then(function (doc) {
+            expect(doc).toBeUndefined();
+          })
+          .then(function () {
+            coll.findOne({a: 2}, function (err, doc) {
+              expect(err).toBeNull();
+              expect(doc).toBeUndefined();
+            });
+          })
+      });
+
+      spec.it('finds a single document', function () {
+        return coll.insert({a: 1})
+          .then(function () {
+            return coll.findOne({a: 1});
+          })
+          .then(function (doc) {
+            expect(doc).not.toBeNull();
+            expect(doc.a).toEqual(1);
+          })
+          .then(function () {
+            coll.findOne({a: 1}, function (err, doc) {
+              expect(err).toBeNull();
+              expect(doc.a).toEqual(1);
+            });
+          })
+      });
+
+      spec.it('finds a single document when many match', function (done) {
+        return coll.insert([{a: 1, b: 2}, {a: 1, b: 3}, {a: 1, b: 4}])
+          .then(function () {
+            return coll.findOne({a: 1});
+          })
+          .then(function (doc) {
+            expect(doc).not.toBeNull();
+            expect(doc.a).toEqual(1);
+          })
+          .then(function () {
+            coll.findOne({a: 1}, function (err, doc) {
+              expect(err).toBeNull();
+              expect(doc.a).toEqual(1);
+              expect(doc.b).not.toBeNull();
+            });
+          })
+      });
+    });
+  });
 };

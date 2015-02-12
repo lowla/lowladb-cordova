@@ -146,6 +146,7 @@ var exec = require('cordova/exec');
 
   Collection.prototype.count = count;
   Collection.prototype.find = find;
+  Collection.prototype.findOne = findOne;
   Collection.prototype.insert = insert;
   
   function Collection(lowla, dbName, collectionName) {
@@ -158,7 +159,25 @@ var exec = require('cordova/exec');
     /*jshint validthis:true */
     return LowlaDB.Cursor(this, filter);
   }
-  
+ 
+  function findOne(filter, callback) {
+    /*jshint validthis:true */
+    var coll = this;
+    return this.find(filter).limit(1).toArray()
+      .then(function (arr) {
+        var obj = (arr && arr.length > 0) ? arr[0] : undefined;
+        if (callback) {
+          callback(null, obj);
+        }
+        return obj;
+      }, function (err) {
+        if (callback) {
+          callback(err);
+        }
+        throw err;
+      });
+  }
+ 
   function insert(arg, callback) {
     /*jshint validthis:true */
     var coll = this;
@@ -288,42 +307,48 @@ var exec = require('cordova/exec');
 
   function each(callback) {
     /* jshint validthis:true */
+    var cursor = this;
+ 
     if (!callback) {
       return;
     }
-
-    try {
-      this._applyFilter().then(function (arr) {
-        arr.forEach(function (doc) {
-          callback(null, doc.document);
-        });
+ 
+    return new Promise(function(resolve, reject) {
+      var successCallback = function (doc) {
+        if (doc) {
+          callback(null, doc);
+        }
+        else {
+          resolve();
+        }
+      };
+      var failureCallback = function (err) {reject(err);};
+      exec(successCallback, failureCallback, 'LowlaDB', 'cursor_each', [cursor]);
+    })
+      .catch(function (err) {
+        callback(err);
       });
-    }
-    catch (e) {
-      callback(e);
-    }
   }
-
+               
   function toArray(callback) {
     /* jshint validthis:true */
     var cursor = this;
-    return Promise.resolve()
-      .then(function () {
-        return cursor._applyFilter();
-      })
-      .then(function (filtered) {
-        filtered = filtered.map(function (doc) {
-          return doc.document;
-        });
-        if (callback) {
-          callback(null, filtered);
-        }
-        return filtered;
-      }, function (err) {
+              
+    var answer = [];
+    return this.each(function (err, doc) {
+      if (err) {
         if (callback) {
           callback(err);
         }
         throw err;
+      }
+      answer.push(JSON.parse(doc));
+    })
+      .then(function () {
+        if (callback) {
+          callback(null, answer);
+        }
+        return answer;
       });
   }
 

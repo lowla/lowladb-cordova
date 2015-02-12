@@ -26,4 +26,5 @@
 - (int64_t)longForField:(NSString *)field;
 
 - (const char *)asBson;
+- (NSString *)asJson;
 @end
