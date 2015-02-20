@@ -86,40 +86,6 @@
     }];
 }
 
-- (void) cursor_count:(CDVInvokedUrlCommand *)command
-{
-    [self.commandDelegate runInBackground:^{
-        CDVPluginResult *pluginResult;
-        
-        NSDictionary *cursor = [command argumentAtIndex:0 withDefault:nil andClass:[NSDictionary class]];
-        if (cursor) {
-            NSDictionary *coll = (NSDictionary *)[cursor objectForKey:@"_collection"];
-            NSString *dbName = (NSString *)[coll objectForKey:@"dbName"];
-            NSString *collName = (NSString *)[coll objectForKey:@"collectionName"];
-            if (dbName && collName) {
-                LDBClient *client = [[LDBClient alloc] init];
-                LDBDb *db = [client getDatabase:dbName];
-                LDBCollection *coll = [db getCollection:collName];
-                NSDictionary *filterDict = (NSDictionary *)[cursor objectForKey:@"_filter"];
-                LDBObject *filter = nil;
-                if (filterDict) {
-                    filter = [LDBObject objectWithDictionary:filterDict];
-                }
-                LDBCursor *cursor = [[LDBCursor alloc] initWithCollection:coll query:filter keys:nil];
-                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsInt:(int)[cursor count]];
-            }
-            else {
-                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Internal error: cursor has invalid structure"];
-            }
-        }
-        else {
-            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Internal error: missing cursor"];
-        }
-        
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    }];
-}
-
 static LDBObject *convertSortSpec(id sortSpec) {
     if ([sortSpec isKindOfClass:[NSString class]]) {
         return [[[LDBObjectBuilder builder] appendInt:1 forField:sortSpec] finish];
@@ -162,56 +128,80 @@ static LDBObject *convertSortSpec(id sortSpec) {
     }
 }
 
+static LDBCursor *convertCursorSpec(NSDictionary *cursorSpec) {
+    if (!cursorSpec) {
+        return nil;
+    }
+    NSDictionary *coll = (NSDictionary *)[cursorSpec objectForKey:@"_collection"];
+    NSString *dbName = (NSString *)[coll objectForKey:@"dbName"];
+    NSString *collName = (NSString *)[coll objectForKey:@"collectionName"];
+    if (dbName && collName) {
+        LDBClient *client = [[LDBClient alloc] init];
+        LDBDb *db = [client getDatabase:dbName];
+        LDBCollection *coll = [db getCollection:collName];
+        NSDictionary *filterDict = (NSDictionary *)[cursorSpec objectForKey:@"_filter"];
+        LDBObject *filter = nil;
+        if (filterDict) {
+            filter = [LDBObject objectWithDictionary:filterDict];
+        }
+        LDBCursor *cursor = [[LDBCursor alloc] initWithCollection:coll query:filter keys:nil];
+        NSDictionary *options = (NSDictionary *)[cursorSpec objectForKey:@"_options"];
+        if (options) {
+            id sortSpec = [options objectForKey:@"sort"];
+            if (sortSpec) {
+                LDBObject *sort = convertSortSpec(sortSpec);
+                if (sort) {
+                    cursor = [cursor sort:sort];
+                }
+            }
+            id limitSpec = [options objectForKey:@"limit"];
+            if (limitSpec && [limitSpec isKindOfClass:[NSNumber class]]) {
+                int limit = [limitSpec intValue];
+                if (0 < limit) {
+                    cursor = [cursor limit:limit];
+                }
+            }
+        }
+        return cursor;
+    }
+    return nil;
+}
+
+- (void) cursor_count:(CDVInvokedUrlCommand *)command
+{
+    [self.commandDelegate runInBackground:^{
+        CDVPluginResult *pluginResult;
+        
+        NSDictionary *cursorSpec = [command argumentAtIndex:0 withDefault:nil andClass:[NSDictionary class]];
+        LDBCursor *cursor = convertCursorSpec(cursorSpec);
+        if (cursor) {
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsInt:(int)[cursor count]];
+        }
+        else {
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Internal error: cursor has invalid structure"];
+        }
+        
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    }];
+}
+
 - (void) cursor_each:(CDVInvokedUrlCommand *)command
 {
     [self.commandDelegate runInBackground:^{
         CDVPluginResult *pluginResult;
         NSDictionary *cursorSpec = [command argumentAtIndex:0 withDefault:nil andClass:[NSDictionary class]];
-        if (cursorSpec) {
-            NSDictionary *coll = (NSDictionary *)[cursorSpec objectForKey:@"_collection"];
-            NSString *dbName = (NSString *)[coll objectForKey:@"dbName"];
-            NSString *collName = (NSString *)[coll objectForKey:@"collectionName"];
-            if (dbName && collName) {
-                LDBClient *client = [[LDBClient alloc] init];
-                LDBDb *db = [client getDatabase:dbName];
-                LDBCollection *coll = [db getCollection:collName];
-                NSDictionary *filterDict = (NSDictionary *)[cursorSpec objectForKey:@"_filter"];
-                LDBObject *filter = nil;
-                if (filterDict) {
-                    filter = [LDBObject objectWithDictionary:filterDict];
-                }
-                LDBCursor *cursor = [[LDBCursor alloc] initWithCollection:coll query:filter keys:nil];
-                NSDictionary *options = (NSDictionary *)[cursorSpec objectForKey:@"_options"];
-                if (options) {
-                    id sortSpec = [options objectForKey:@"sort"];
-                    if (sortSpec) {
-                        LDBObject *sort = convertSortSpec(sortSpec);
-                        if (sort) {
-                            cursor = [cursor sort:sort];
-                        }
-                    }
-                    id limitSpec = [options objectForKey:@"limit"];
-                    if (limitSpec && [limitSpec isKindOfClass:[NSNumber class]]) {
-                        int limit = [limitSpec intValue];
-                        if (0 < limit) {
-                            cursor = [cursor limit:limit];
-                        }
-                    }
-                }
-                while ([cursor hasNext]) {
-                    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:[[cursor next] asJson]];
-                    [pluginResult setKeepCallbackAsBool:YES];
-                    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-                }
-                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsBool:NO];
+        LDBCursor *cursor = convertCursorSpec(cursorSpec);
+        if (cursor) {
+            while ([cursor hasNext]) {
+                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:[[cursor next] asJson]];
+                [pluginResult setKeepCallbackAsBool:YES];
+                [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+            }
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsBool:NO];
                 [pluginResult setKeepCallbackAsBool:NO];
-            }
-            else {
-                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Internal error: cursor has invalid structure"];
-            }
         }
         else {
-            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Internal error: missing cursor"];
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Internal error: cursor has invalid structure"];
         }
         
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];

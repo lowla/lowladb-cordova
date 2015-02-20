@@ -448,5 +448,53 @@ exports.defineAutoTests = function() {
           });
       });
     });
+    
+    describe('count()', function () {
+      var spec = new JasmineThen.Spec(this);
+      
+      spec.it('can count the documents', function () {
+        return coll
+          .find()
+          .count()
+          .then(function (count) {
+            expect(count).toEqual(3);
+            return coll.find({a: 2}).count();
+          })
+          .then(function (count) {
+            expect(count).toEqual(1);
+            return coll.find({}).limit(2).count(true);
+          })
+          .then(function (count) {
+            expect(count).toEqual(2);
+            return coll.find().limit(20).count(true);
+          })
+          .then(function (count) {
+            expect(count).toEqual(3);
+            return coll.find().limit(2).count(false);
+          })
+          .then(function (count) {
+            expect(count).toEqual(3);
+          });
+      });
+
+      spec.it('provides count via callback', function () {
+        return coll
+          .find()
+          .count(function (err, count) {
+            expect(err).toBeNull();
+            expect(count).toEqual(3);
+          });
+      });
+
+      spec.it('supports both arguments to count', function () {
+        return coll
+          .find()
+          .limit(2)
+          .count(true, function (err, count) {
+            expect(err).toBeNull();
+            expect(count).toEqual(2);
+          });
+      });
+    });
   });
 };
