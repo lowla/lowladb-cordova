@@ -349,5 +349,104 @@ exports.defineAutoTests = function() {
         coll.find().each();
       });
     });
+    
+    describe('sort()', function () {
+      var spec = new JasmineThen.Spec(this);
+
+      spec.it('can sort numbers', function () {
+        return coll2
+          .find()
+          .sort('b')
+          .toArray()
+          .then(function (arr) {
+            expect(arr.length).toEqual(3);
+            expect(arr[0].b).toEqual(3);
+            expect(arr[1].b).toEqual(7);
+            expect(arr[2].b).toEqual(12);
+          });
+      });
+             
+      spec.it('can sort text', function () {
+        return coll2
+          .find()
+          .sort('c')
+          .toArray()
+          .then(function (arr) {
+            expect(arr.length).toEqual(3);
+            expect(arr[0].c).toEqual('a');
+            expect(arr[1].c).toEqual('f');
+            expect(arr[2].c).toEqual('q');
+          });
+      });
+             
+      spec.it('can sort in descending order', function () {
+        return coll2
+          .find()
+          .sort([['b', -1]])
+          .toArray()
+          .then(function (arr) {
+            expect(arr.length).toEqual(3);
+            expect(arr[0].b).toEqual(12);
+            expect(arr[1].b).toEqual(7);
+            expect(arr[2].b).toEqual(3);
+          });
+      });
+             
+      spec.it('can sort documents without the sort criteria', function () {
+        return coll2
+          .find()
+          .sort('x')
+          .toArray()
+          .then(function (arr) {
+            expect(arr.length).toEqual(3);
+            expect(arr[2].x).toEqual(1);
+                  
+            return coll2
+              .find()
+              .sort('y')
+              .toArray();
+          })
+          .then(function (arr) {
+            expect(arr.length).toEqual(3);
+            expect(arr[2].y).toEqual(2);
+          });
+      });
+             
+      spec.it('can sort documents with the same sort value', function () {
+        return coll2
+          .find()
+          .sort([['s', 1], 'b'])
+          .toArray()
+          .then(function (arr) {
+            expect(arr.length).toEqual(3);
+            expect(arr[0].b).toEqual(3);
+            expect(arr[1].b).toEqual(7);
+            expect(arr[2].b).toEqual(12);
+          });
+      });
+    });
+    
+    describe('limit()', function () {
+      var spec = new JasmineThen.Spec(this);
+
+      spec.it('can limit sorted documents', function () {
+        return coll
+          .find({})
+          .sort('a')
+          .limit(2)
+          .toArray()
+          .then(function (arr) {
+            expect(arr.length).toEqual(2);
+            expect(arr[0].a).toEqual(1);
+            expect(arr[1].a).toEqual(2);
+                    
+            return coll.find({}).limit(1).sort([['a', -1]]).toArray();
+          })
+          .then(function (arr) {
+            expect(arr.length).toEqual(1);
+            expect(arr[0].a).toEqual(3);
+          });
+      });
+    });
   });
 };
