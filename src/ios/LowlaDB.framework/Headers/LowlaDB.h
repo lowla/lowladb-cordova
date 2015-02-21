@@ -13,3 +13,4 @@
 #import "LowlaDB/LDBObject.h"
 #import "LowlaDB/LDBObjectBuilder.h"
 #import "LowlaDB/LDBObjectId.h"
+#import "LowlaDB/LDBWriteResult.h"

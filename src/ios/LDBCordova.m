@@ -63,21 +63,31 @@
             LDBClient *client = [[LDBClient alloc] init];
             LDBDb *db = [client getDatabase:dbName];
             LDBCollection *coll = [db getCollection:collName];
-            if ([data isKindOfClass:[NSDictionary class]]) {
-                LDBObject *object = [LDBObject objectWithDictionary:data];
-                [coll insert:object];
+            LDBWriteResult *wr;
+            @try {
+                if ([data isKindOfClass:[NSDictionary class]]) {
+                    LDBObject *object = [LDBObject objectWithDictionary:data];
+                    wr = [coll insert:object];
+                }
+                else if ([data isKindOfClass:[NSArray class]]) {
+                    NSMutableArray *arr = [NSMutableArray arrayWithCapacity:[(NSArray *)data count]];
+                    [data enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+                        if ([obj isKindOfClass:[NSDictionary class]]) {
+                            LDBObject *object = [LDBObject objectWithDictionary:obj];
+                            [arr addObject:object];
+                        }
+                    }];
+                    wr = [coll insertArray:arr];
+                }
+                NSMutableArray *docs = [NSMutableArray array];
+                for (int i = 0 ; i < [wr documentCount] ; ++i) {
+                    [docs addObject:[[wr document:i] asJson]];
+                }
+                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:docs];
             }
-            else if ([data isKindOfClass:[NSArray class]]) {
-                NSMutableArray *arr = [NSMutableArray arrayWithCapacity:[(NSArray *)data count]];
-                [data enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
-                    if ([obj isKindOfClass:[NSDictionary class]]) {
-                        LDBObject *object = [LDBObject objectWithDictionary:obj];
-                        [arr addObject:object];
-                    }
-                }];
-                [coll insertArray:arr];
+            @catch (NSException *e) {
+                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:[e reason]];
             }
-            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
         }
         else {
             pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Internal error: missing dbName or collName"];

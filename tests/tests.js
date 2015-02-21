@@ -115,7 +115,94 @@ exports.defineAutoTests = function() {
       });
     });
     
-    describe('find()', function (done) {
+    describe('insert()', function () {
+      var spec = new JasmineThen.Spec(this);
+      /*
+      spec.it('can insert documents using a custom lowlaId generator', function (done) {
+        lowla.close();
+        lowla = new LowlaDB({datastore: dsName, lowlaId: ssnIdGenerator});
+        var coll = lowla.collection('dbName', 'CollName');
+        var doc = {ssn: '020-43-9853'};
+
+        coll
+          .insert(doc)
+          .then(function () {
+            lowla.datastore.loadDocument('dbName.CollName', doc.ssn, testUtils.cb(done, function (foundDoc) {
+              should.exist(foundDoc);
+              foundDoc.ssn.should.equal(doc.ssn);
+            }));
+          })
+          .then(null, done);
+
+        function ssnIdGenerator(coll, doc) {
+          return doc.ssn;
+        }
+      });
+      */
+
+      spec.it('can create documents', function () {
+        var coll = lowla.collection('dbName', 'CollName');
+        return coll.insert({a: 1})
+          .then(function (doc) {
+            expect(doc).not.toBeNull();
+            expect(doc._id).toBeDefined();
+            expect(doc.a).toEqual(1);
+          })
+          .then(function () {
+            coll.insert({b: 2}, function (err, doc) {
+              expect(err).toBeNull();
+              expect(doc).not.toBeNull();
+              expect(doc.b).toEqual(2);
+            });
+          })
+      });
+
+      spec.it('can insert multiple documents at once', function () {
+        var coll = lowla.collection('dbName', 'CollName');
+        return coll.insert([{a: 1}, {b: 2}])
+          .then(function (docs) {
+            expect(docs instanceof Array).toBe(true);
+            expect(docs.length).toEqual(2);
+            expect(docs[0].a).toEqual(1);
+            expect(docs[1].b).toEqual(2);
+            expect(docs._id).toBeUndefined();
+            expect(docs[0]._id).toBeDefined();
+            expect(docs[1]._id).toBeDefined();
+          })
+          .then(function () {
+            coll.insert([{c: 3}, {d: 4}], function (err, docs) {
+              expect(err).toBeNull();
+              expect(docs instanceof Array).toBe(true);
+              expect(docs.length).toEqual(2);
+              expect(docs[0].c).toEqual(3);
+              expect(docs[1].d).toEqual(4);
+              expect(docs._id).toBeUndefined();
+              expect(docs[0]._id).toBeDefined();
+              expect(docs[1]._id).toBeDefined();
+            });
+          })
+      });
+
+      spec.it('prevents inserting $field names', function () {
+        var coll = lowla.collection('dbName', 'CollName');
+        coll.insert({$field: 1})
+          .then(function (docs) {
+            expect(docs).toBeUndefined(); // Shouldn't reach here
+          }, function (err) {
+            expect(err).toBeDefine();
+            expect(err).toMatch(/\$field/);
+          })
+          .then(function () {
+            coll.insert({$field2: 1}, function (err, doc) {
+              expect(err).toBeDefined();
+              expect(doc).toBeNull();
+              expect(err).toMatch(/\$field/);
+            });
+          })
+      });
+    });
+    
+    describe('find()', function () {
       var spec = new JasmineThen.Spec(this);
       
       spec.it('with no documents in datastore works without error', function () {

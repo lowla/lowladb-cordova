@@ -182,16 +182,19 @@ var exec = require('cordova/exec');
     /*jshint validthis:true */
     var coll = this;
     return new Promise(function(resolve, reject) {
-      var successCallback = function () {resolve();};
+      var successCallback = function (docs) {resolve(docs);};
       var failureCallback = function (err) {reject(err);};
       exec(successCallback, failureCallback, 'LowlaDB', 'collection_insert', [coll.dbName, coll.collectionName, arg]);
     })
-      .then(function() {
-        var savedDoc; // Do we need this?
-        if (callback) {
-          callback(null, savedDoc);
+      .then(function (docs) {
+        docs = docs.map(JSON.parse);
+        if (!LowlaDB.utils.isArray(arg)) {
+          docs = docs.length ? docs[0] : null;
         }
-        return savedDoc;
+        if (callback) {
+          callback(null, docs);
+        }
+        return docs;
       })
       .catch(function(e) {
         if (callback) {
@@ -387,6 +390,11 @@ var exec = require('cordova/exec');
 // Utils
 (function (LowlaDB) {
   LowlaDB.utils = {};
+  
+  LowlaDB.utils.isArray = function (obj) {
+    return (obj instanceof Array);
+  };
+  
   LowlaDB.utils.keys = function(obj) {
     if (!obj) {
       return [];
