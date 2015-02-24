@@ -148,6 +148,7 @@ var exec = require('cordova/exec');
   Collection.prototype.find = find;
   Collection.prototype.findOne = findOne;
   Collection.prototype.insert = insert;
+  Collection.prototype.remove = remove;
   
   function Collection(lowla, dbName, collectionName) {
     this.dbName = dbName;
@@ -212,6 +213,34 @@ var exec = require('cordova/exec');
     }
 
     return this.find(query).count(callback);
+  }
+  
+  function remove(filter, callback) {
+    /*jshint validthis:true */
+    var coll = this;
+
+    if (typeof(filter) === 'function') {
+      callback = filter;
+      filter = {};
+    }
+
+    return new Promise(function(resolve, reject) {
+      var successCallback = function (count) {resolve(count);};
+      var failureCallback = function (err) {reject(err);};
+      exec(successCallback, failureCallback, 'LowlaDB', 'collection_remove', [coll.dbName, coll.collectionName, filter]);
+    })
+      .then(function (count) {
+        if (callback) {
+          callback(null, count);
+        }
+        return count;
+      })
+      .catch(function (e) {
+        if (callback) {
+          callback(e);
+        }
+        throw e;
+      });
   }
   
 })(module.exports);

@@ -293,7 +293,7 @@ exports.defineAutoTests = function() {
       });
     });
 
-    describe('findOne()', function (done) {
+    describe('findOne()', function () {
       var spec = new JasmineThen.Spec(this);
       
       var coll;
@@ -347,6 +347,82 @@ exports.defineAutoTests = function() {
               expect(doc.b).not.toBeNull();
             });
           })
+      });
+    });
+    
+    describe('remove()', function () {
+      var spec = new JasmineThen.Spec(this);
+      
+      var coll;
+      spec.beforeEach(function () {
+        coll = lowla.collection('dbName', 'CollName');
+
+        var theDB = lowla.db('dbName');
+        return theDB.dropDatabase();
+      });
+
+      spec.it('can remove a document', function () {
+        return coll
+          .insert([{a: 1}, {a: 2}, {a: 3}])
+          .then(function () {
+            return coll.remove({a: 2});
+          })
+          .then(function (count) {
+            expect(count).toEqual(1);
+            return coll.find({}).sort('a').toArray();
+          })
+          .then(function (arr) {
+            expect(arr.length).toEqual(2);
+            expect(arr[0].a).toEqual(1);
+            expect(arr[1].a).toEqual(3);
+          })
+          .then(function () {
+            coll.remove({a: 3}, function (err, count) {
+              expect(err).toBeNull();
+              expect(count).toEqual(1);
+            });
+          })
+      });
+
+      spec.it('can remove zero documents', function () {
+        return coll
+          .insert([{a: 1}, {b: 2}, {c: 3}])
+          .then(function () {
+            return coll.remove({d: 4});
+          })
+          .then(function (count) {
+            expect(count).toEqual(0);
+            return coll.find().toArray();
+          })
+          .then(function (arr) {
+            expect(arr.length).toEqual(3);
+          });
+      });
+
+      spec.it('can remove all documents', function () {
+        return coll
+          .insert([{a: 1}, {b: 2}, {c: 3}])
+          .then(function () {
+            return coll.remove();
+          })
+          .then(function (count) {
+            expect(count).toEqual(3);
+            return coll.find().toArray();
+          })
+          .then(function (arr) {
+            expect(arr.length).toEqual(0);
+          });
+      });
+
+      spec.it('works with only callback argument', function () {
+        return coll
+          .insert([{a: 1}, {a: 2}])
+          .then(function () {
+            coll.remove(function (err, count) {
+              expect(err).toBeNull();
+              expect(count).toEqual(2);
+            });
+          });
       });
     });
   });

@@ -96,6 +96,33 @@
     }];
 }
 
+- (void) collection_remove:(CDVInvokedUrlCommand *)command
+{
+    [self.commandDelegate runInBackground:^{
+        CDVPluginResult *pluginResult;
+        
+        NSString *dbName = [command argumentAtIndex:0 withDefault:nil andClass:[NSString class]];
+        NSString *collName = [command argumentAtIndex:1 withDefault:nil andClass:[NSString class]];
+        NSDictionary *query = [command argumentAtIndex:2 withDefault:nil andClass:[NSDictionary class]];
+        
+        if (dbName && collName) {
+            LDBClient *client = [[LDBClient alloc] init];
+            LDBDb *db = [client getDatabase:dbName];
+            LDBCollection *coll = [db getCollection:collName];
+            LDBObject *queryObj = nil;
+            if (query) {
+                queryObj = [LDBObject objectWithDictionary:query];
+            }
+            LDBWriteResult *wr = [coll remove:queryObj];
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsInt:[wr documentCount]];
+        }
+        else {
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Internal error: missing dbName or collName"];
+        }
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    }];
+}
+
 static LDBObject *convertSortSpec(id sortSpec) {
     if ([sortSpec isKindOfClass:[NSString class]]) {
         return [[[LDBObjectBuilder builder] appendInt:1 forField:sortSpec] finish];
