@@ -237,6 +237,13 @@ static LDBCursor *convertCursorSpec(NSDictionary *cursorSpec) {
                     cursor = [cursor limit:limit];
                 }
             }
+            id showPendingSpec = [options objectForKey:@"showPending"];
+            if (showPendingSpec && [showPendingSpec isKindOfClass:[NSNumber class]]) {
+                BOOL showPending = [showPendingSpec boolValue];
+                if (showPending) {
+                    cursor = [cursor showPending];
+                }
+            }
         }
         return cursor;
     }

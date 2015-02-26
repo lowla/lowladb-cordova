@@ -772,6 +772,24 @@ exports.defineAutoTests = function() {
       });
     });
     
+    describe('showPending()', function () {
+      var spec = new JasmineThen.Spec(this);
+
+      spec.it('sets modified documents as pending sync', function () {
+        return coll
+          .find()
+          .showPending()
+          .toArray()
+          .then(function (arr) {
+            expect(arr).toBeDefined();
+            expect(arr.length).toEqual(3);
+            expect(arr[0].$pending).toBe(true);
+            expect(arr[1].$pending).toBe(true);
+            expect(arr[2].$pending).toBe(true);
+          });
+      });
+    });
+    
     describe('count()', function () {
       var spec = new JasmineThen.Spec(this);
       
