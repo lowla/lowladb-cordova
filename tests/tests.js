@@ -54,6 +54,7 @@ exports.defineAutoTests = function() {
       spec.it('can return only the collection names', function () {
         return theDB.collectionNames({namesOnly: true}).then(function (names) {
           expect(names.length).toEqual(2);
+          names.sort();
           expect(names[0]).toEqual('dbName.collectionOne');
           expect(names[1]).toEqual('dbName.collectionTwo');
         });
@@ -107,7 +108,7 @@ exports.defineAutoTests = function() {
             expect(count).toEqual(0);
           })
           .then(function () {
-            coll.count(function (err, count) {
+            return coll.count(function (err, count) {
               expect(err).toBeNull();
               expect(count).toEqual(3);
             });
@@ -149,7 +150,7 @@ exports.defineAutoTests = function() {
             expect(doc.a).toEqual(1);
           })
           .then(function () {
-            coll.insert({b: 2}, function (err, doc) {
+            return coll.insert({b: 2}, function (err, doc) {
               expect(err).toBeNull();
               expect(doc).not.toBeNull();
               expect(doc.b).toEqual(2);
@@ -170,7 +171,7 @@ exports.defineAutoTests = function() {
             expect(docs[1]._id).toBeDefined();
           })
           .then(function () {
-            coll.insert([{c: 3}, {d: 4}], function (err, docs) {
+            return coll.insert([{c: 3}, {d: 4}], function (err, docs) {
               expect(err).toBeNull();
               expect(docs instanceof Array).toBe(true);
               expect(docs.length).toEqual(2);
@@ -189,13 +190,13 @@ exports.defineAutoTests = function() {
           .then(function (docs) {
             expect(docs).toBeUndefined(); // Shouldn't reach here
           }, function (err) {
-            expect(err).toBeDefine();
+            expect(err).toBeDefined();
             expect(err).toMatch(/\$field/);
           })
           .then(function () {
-            coll.insert({$field2: 1}, function (err, doc) {
+            return coll.insert({$field2: 1}, function (err, doc) {
               expect(err).toBeDefined();
-              expect(doc).toBeNull();
+              expect(doc).toBeUndefined();
               expect(err).toMatch(/\$field/);
             });
           })
@@ -213,7 +214,7 @@ exports.defineAutoTests = function() {
             expect(docs.length).toEqual(0);
           })
           .then(function () {
-            coll.find({}).toArray(function (err, docs) {
+            return coll.find({}).toArray(function (err, docs) {
               expect(err).toBeNull();
               expect(docs).not.toBeNull();
               expect(docs.length).toEqual(0);
@@ -232,7 +233,7 @@ exports.defineAutoTests = function() {
             expect(docs.length).toEqual(0);
           })
           .then(function () {
-            coll.find({a: 2}).toArray(function (err, docs) {
+            return coll.find({a: 2}).toArray(function (err, docs) {
               expect(err).toBeNull();
               expect(docs).not.toBeNull();
               expect(docs.length).toEqual(0);
@@ -266,7 +267,7 @@ exports.defineAutoTests = function() {
             expect(docs[0].c).toEqual(3);
           })
           .then(function () {
-            coll.find({d: 4}).toArray(function (err, docs) {
+            return coll.find({d: 4}).toArray(function (err, docs) {
               expect(err).toBeNull();
               expect(docs).not.toBeNull();
               expect(docs.length).toEqual(1);
@@ -307,7 +308,7 @@ exports.defineAutoTests = function() {
             expect(doc).toBeUndefined();
           })
           .then(function () {
-            coll.findOne({a: 2}, function (err, doc) {
+            return coll.findOne({a: 2}, function (err, doc) {
               expect(err).toBeNull();
               expect(doc).toBeUndefined();
             });
@@ -324,7 +325,7 @@ exports.defineAutoTests = function() {
             expect(doc.a).toEqual(1);
           })
           .then(function () {
-            coll.findOne({a: 1}, function (err, doc) {
+            return coll.findOne({a: 1}, function (err, doc) {
               expect(err).toBeNull();
               expect(doc.a).toEqual(1);
             });
@@ -341,12 +342,171 @@ exports.defineAutoTests = function() {
             expect(doc.a).toEqual(1);
           })
           .then(function () {
-            coll.findOne({a: 1}, function (err, doc) {
+            return coll.findOne({a: 1}, function (err, doc) {
               expect(err).toBeNull();
               expect(doc.a).toEqual(1);
               expect(doc.b).not.toBeNull();
             });
           })
+      });
+    });
+    
+    describe('findAndModify()', function () {
+      var spec = new JasmineThen.Spec(this);
+      var coll;
+
+      spec.beforeEach(function () {
+        coll = lowla.collection('dbName', 'CollName');
+      });
+
+      spec.it('can find and modify a document', function () {
+        return coll.insert([{a: 1}, {b: 2}, {c: 3}])
+          .then(function () {
+            return coll.findAndModify({a: 1}, {$set: {a: 2}});
+          })
+          .then(function (newObj) {
+            expect(newObj.a).toEqual(2);
+          })
+          .then(function () {
+            return coll.findAndModify({a: 2}, {$set: {a: 3}}, function (err, newObj) {
+              expect(err).toBeNull();
+              expect(newObj.a).toEqual(3);
+            });
+          })
+      });
+
+      spec.it('supports $unset operations', function () {
+        return coll.insert({a: 1, b: 2, c: 3})
+          .then(function () {
+            return coll.findAndModify({a: 1}, {$unset: {b: ''}});
+          })
+          .then(function (obj) {
+            expect(obj.a).toEqual(1);
+            expect(obj.c).toEqual(3);
+            expect(obj.b).toBeUndefined();
+
+            // Shouldn't matter if the field isn't present
+            return coll.findAndModify({a: 1}, {$unset: {notThere: ''}});
+          })
+          .then(function (obj) {
+            expect(obj.a).toEqual(1);
+            expect(obj.c).toEqual(3);
+            expect(obj.b).toBeUndefined();
+            expect(obj.notThere).toBeUndefined();
+          });
+      });
+
+      spec.it('does not modify other documents when filter finds no documents', function () {
+        return coll.insert([{a: 1}, {a: 2}, {a: 3}])
+          .then(function () {
+            return coll.findAndModify({x: 22}, {$set: {b: 2}});
+          })
+          .then(function () {
+            return coll.find({}).sort('a').toArray();
+          })
+          .then(function (arr) {
+            expect(arr.length).toEqual(3);
+            expect(arr[0].b).toBeUndefined();
+            expect(arr[1].b).toBeUndefined();
+            expect(arr[2].b).toBeUndefined();
+          });
+      });
+
+      spec.it('preserves existing ids when performing full document updates', function () {
+        var docId;
+        return coll.insert({a: 1})
+          .then(function (doc) {
+            docId = doc._id;
+            return coll.findAndModify({a: 1}, {a: 2, b: 3});
+          })
+          .then(function () {
+            return coll.find().toArray();
+          })
+          .then(function (arr) {
+            expect(arr.length).toEqual(1);
+            expect(arr[0]._id).toEqual(docId);
+          });
+      });
+
+      spec.it('can find and modify the correct document among many documents', function () {
+        var id2;
+        return coll.insert([{a: 1}, {a: 2}, {a: 3}])
+          .then(function (arr) {
+            expect(arr[1].a).toEqual(2);
+            id2 = arr[1]._id;
+            expect(arr.length).toEqual(3);
+            return coll.findAndModify({a: 2}, {$set: {a: 5}});
+          })
+          .then(function () {
+            return coll.find({_id: id2}).toArray();
+          })
+          .then(function (arr) {
+            expect(arr.length).toEqual(1);
+            expect(arr[0].a).toEqual(5);
+          });
+      });
+
+      spec.it('prevents replacement updates with $field names', function () {
+        return coll.insert({a: 1})
+          .then(function (obj) {
+            return coll.findAndModify({_id: obj._id}, {$badField: 2});
+          })
+          .then(function (obj) {
+            expect(obj).toBeNull(); // Shouldn't get here
+          }, function (err) {
+            expect(err).toBeDefined();
+            expect(err).toMatch(/\$badField/);
+          })
+          .then(function () {
+            return coll.findAndModify({a: 1}, {$badField2: 2}, function (err, obj) {
+              expect(obj).toBeUndefined();
+              expect(err).toMatch(/\$badField2/);
+            });
+          })
+          .catch(function () {
+          });
+      });
+
+      spec.it('prevents update operations on $field names', function () {
+        return coll.insert({a: 1})
+          .then(function (obj) {
+            return coll.findAndModify({_id: obj._id}, {$set: {$badName: 3}});
+          })
+          .then(function (obj) {
+            expect(obj).toBeNull(); // Shouldn't get here
+          }, function (err) {
+            expect(err).toBeDefined();
+            expect(err).toMatch(/\$badName/);
+          })
+          .then(function () {
+            return coll.findAndModify({a: 1}, {$set: {$badName2: 3}}, function (err, obj) {
+              expect(obj).toBeUndefined();
+              expect(err).toMatch(/\$badName2/);
+            });
+          })
+          .catch(function () {
+          });
+      });
+
+      spec.it('prevents mixing operations with fields', function () {
+        return coll.insert({a: 1})
+          .then(function () {
+            return coll.findAndModify({a: 1}, {$set: {b: 2}, c: 3});
+          })
+          .then(function (obj) {
+            expect(obj).toBeNull(); // Shouldn't get here
+          }, function(err) {
+            expect(err).toBeDefined();
+            expect(err).toMatch(/Can not mix/);
+          })
+          .then(function () {
+            return coll.findAndModify({a: 1}, {$set: {b: 3}, c: 4}, function (err, obj) {
+              expect(obj).toBeUndefined();
+              expect(err).toMatch(/Can not mix/);
+            });
+          })
+          .catch(function () {
+          });
       });
     });
     
@@ -377,7 +537,7 @@ exports.defineAutoTests = function() {
             expect(arr[1].a).toEqual(3);
           })
           .then(function () {
-            coll.remove({a: 3}, function (err, count) {
+            return coll.remove({a: 3}, function (err, count) {
               expect(err).toBeNull();
               expect(count).toEqual(1);
             });
@@ -418,7 +578,7 @@ exports.defineAutoTests = function() {
         return coll
           .insert([{a: 1}, {a: 2}])
           .then(function () {
-            coll.remove(function (err, count) {
+            return coll.remove(function (err, count) {
               expect(err).toBeNull();
               expect(count).toEqual(2);
             });
@@ -472,7 +632,7 @@ exports.defineAutoTests = function() {
           .toArray()
           .then(function (arr) {
             expect(arr.length).toEqual(0);
-            cursor.toArray(function (err, arr) {
+            return cursor.toArray(function (err, arr) {
               expect(err).toBeNull();
               expect(arr.length).toEqual(0);
             });

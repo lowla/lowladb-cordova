@@ -50,6 +50,45 @@
     }];
 }
 
+- (void) collection_findAndModify:(CDVInvokedUrlCommand *)command
+{
+    [self.commandDelegate runInBackground:^{
+        CDVPluginResult *pluginResult;
+        
+        NSString *dbName = [command argumentAtIndex:0 withDefault:nil andClass:[NSString class]];
+        NSString *collName = [command argumentAtIndex:1 withDefault:nil andClass:[NSString class]];
+        NSDictionary *querySpec = [command argumentAtIndex:2 withDefault:nil andClass:[NSDictionary class]];
+        NSDictionary *opSpec = [command argumentAtIndex:3 withDefault:nil andClass:[NSDictionary class]];
+        
+        if (dbName && collName && opSpec) {
+            @try {
+                LDBClient *client = [[LDBClient alloc] init];
+                LDBDb *db = [client getDatabase:dbName];
+                LDBCollection *coll = [db getCollection:collName];
+                LDBObject *query = nil;
+                if (querySpec) {
+                    query = [LDBObject objectWithDictionary:querySpec];
+                }
+                LDBObject *ops = [LDBObject objectWithDictionary:opSpec];
+                LDBWriteResult *wr = [coll update:query object:ops];
+                if (0 < [wr documentCount]) {
+                    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:[[wr document:0] asJson]];
+                }
+                else {
+                    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+                }
+            }
+            @catch (NSException *e) {
+                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:[e reason]];
+            }
+        }
+        else {
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Internal error: missing dbName or collName"];
+        }
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    }];
+}
+
 - (void) collection_insert:(CDVInvokedUrlCommand *)command
 {
     [self.commandDelegate runInBackground:^{

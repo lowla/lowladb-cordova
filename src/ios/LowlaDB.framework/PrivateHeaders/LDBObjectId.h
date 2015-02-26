@@ -12,5 +12,8 @@
 
 + (LDBObjectId *)generate;
 - (id)initWithBytes:(const char *)bytes;
+- (id)initWithHexString:(NSString *)hex;
+
 - (const void *)bytes;
+- (NSString *)hexString;
 @end
