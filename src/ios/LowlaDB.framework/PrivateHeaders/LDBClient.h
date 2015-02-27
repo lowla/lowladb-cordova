@@ -17,5 +17,6 @@
 - (void)dropDatabase:(NSString *)dbName;
 - (LDBDb *)getDatabase:(NSString *)dbName;
 - (NSArray *)getDatabaseNames;
+- (void)loadJson:(NSString *)json;
 
 @end

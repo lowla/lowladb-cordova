@@ -6,6 +6,7 @@ var exec = require('cordova/exec');
   LowlaDB.prototype.close = close;
   LowlaDB.prototype.collection = collection;
   LowlaDB.prototype.db = db;
+  LowlaDB.prototype.load = load;
 
   // Private API
   LowlaDB._defaultOptions = {};
@@ -38,6 +39,40 @@ var exec = require('cordova/exec');
 
   function close() {
   }
+  
+  function load(urlOrObj, callback) {
+    return Promise.resolve()
+      .then(function () {
+        if (typeof(urlOrObj) === 'string') {
+          return LowlaDB.utils.getJSON(urlOrObj).
+            then(function (payload) {
+              return payload;
+            });
+        }
+        else {
+          return JSON.stringify(urlOrObj);
+        }
+      })
+      .then(function (json) {
+        return new Promise(function (resolve, reject) {
+          var successCallback = function () {resolve();};
+          var failureCallback = function (err) {reject(err);};
+          exec(successCallback, failureCallback, 'LowlaDB', 'lowla_load', [json]);
+        })
+      })
+      .then(function () {
+        if (callback) {
+          callback(null);
+        }
+      })
+      .catch(function (e) {
+        if (callback) {
+          callback(e);
+        }
+        throw e;
+      });
+  }
+  
 })(module);
 
 // DB
@@ -447,6 +482,53 @@ var exec = require('cordova/exec');
 // Utils
 (function (LowlaDB) {
   LowlaDB.utils = {};
+  
+  function createXHR() {
+    /* global ActiveXObject */
+    /* global alert */
+    var xhr;
+    if (window.ActiveXObject) {
+      try {
+        xhr = new ActiveXObject('Microsoft.XMLHTTP');
+      }
+      catch (e) {
+        alert(e.message);
+        xhr = null;
+      }
+    }
+    else {
+      xhr = new XMLHttpRequest();
+    }
+
+    return xhr;
+  }
+
+  LowlaDB.utils.getJSON = function (url, payload) {
+    var xhr = createXHR();
+    return new Promise(function (resolve, reject) {
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4) {
+          if (xhr.status === 200) {
+            resolve(xhr.responseText);
+          }
+          else {
+            reject(xhr.statusText);
+          }
+        }
+      };
+
+      if (payload) {
+        var json = JSON.stringify(payload);
+        xhr.open('POST', url, true);
+        xhr.setRequestHeader('Content-type', 'application/json');
+        xhr.send(json);
+      }
+      else {
+        xhr.open('GET', url, true);
+        xhr.send();
+      }
+    });
+  };
   
   LowlaDB.utils.isArray = function (obj) {
     return (obj instanceof Array);

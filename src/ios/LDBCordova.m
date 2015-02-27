@@ -13,6 +13,24 @@
 	[self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
+- (void) lowla_load:(CDVInvokedUrlCommand *)command
+{
+    [self.commandDelegate runInBackground:^{
+        CDVPluginResult *pluginResult;
+        
+        NSString *json = [command argumentAtIndex:0 withDefault:nil andClass:[NSString class]];
+        if (json) {
+            LDBClient *client = [[LDBClient alloc] init];
+            [client loadJson:json];
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+        }
+        else {
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Internal error: missing json"];
+        }
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    }];
+}
+
 - (void) db_collectionNames:(CDVInvokedUrlCommand *)command
 {
     [self.commandDelegate runInBackground:^{

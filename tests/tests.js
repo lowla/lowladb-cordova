@@ -838,4 +838,120 @@ exports.defineAutoTests = function() {
       });
     });
   });
+  
+  describe('LowlaDB Sync (Cordova)', function (done) {
+    var spec = new JasmineThen.Spec(this);
+
+    var coll;
+    
+    var makeAdapterResponse = function () {
+      var args = Array.prototype.slice.call(arguments);
+      if (args[0] instanceof Array) {
+        args = args[0];
+      }
+
+      var answer = [];
+      args.map(function (obj) {
+        var objId = obj._id;
+        if (-1 === objId.indexOf('$')) {
+          objId = 'dbName.collectionOne$' + objId;
+        }
+        answer.push({
+          id: objId,
+          clientNs: 'dbName.collectionOne',
+          deleted: !!obj._deleted
+        });
+        if (!obj._deleted) {
+          answer.push(obj);
+        }
+      });
+      return answer;
+    };
+
+    spec.beforeEach(function () {
+      window.lowla = new LowlaDB();
+      var theDB = lowla.db('dbName');
+      coll = lowla.collection('dbName', 'collectionOne');
+      return theDB.dropDatabase();
+    });
+    
+    spec.afterEach(function () {
+      lowla.close();
+    });
+    
+    describe('Load', function () {
+      var spec = new JasmineThen.Spec(this);
+      
+      spec.it('can load documents from an object', function () {
+        var resp = makeAdapterResponse({_id: '1234', a: 1}, {_id: '2345', a: 2}, {_id: '3456', a: 3});
+        return lowla.load({sequence: 5, documents: [resp]})
+          .then(function () {
+            return coll.find().toArray();
+          })
+          .then(function (arr) {
+            expect(arr.length).toEqual(3);
+          });
+      });
+
+      spec.it('can load many documents from a url', function () {
+        var payload = {sequence: 22, documents: []};
+        var docs = [];
+        for (var i = 1; i <= 25; i++) {
+          docs.push({_id: 'fakeId' + i, i: i});
+          if (docs.length === 10) {
+            payload.documents.push(makeAdapterResponse(docs));
+            docs = [];
+          }
+        }
+        if (docs.length) {
+          payload.documents.push(makeAdapterResponse(docs));
+        }
+
+        expect(payload.documents[0].length).toEqual(20);
+        expect(payload.documents[1].length).toEqual(20);
+        expect(payload.documents[2].length).toEqual(10);
+
+        spyOn(LowlaDB.utils, "getJSON").and.callFake(function() {
+          return Promise.resolve(JSON.stringify(payload));
+        });
+
+        return lowla.load('http://lowla.io/my-data.json')
+          .then(function () {
+            return coll.find().toArray();
+          })
+          .then(function (arr) {
+            expect(arr.length).toEqual(25);
+          });
+      });
+
+      spec.it('invokes a given callback', function () {
+        var resp = makeAdapterResponse({_id: '1234', a: 1}, {_id: '2345', a: 2}, {_id: '3456', a: 3});
+        return lowla.load({sequence: 5, documents: [resp]}, function (err) {
+          expect(err).toBeNull();
+        });
+      });
+
+      spec.it('fails appropriately when URL is unavailable', function () {
+        spyOn(LowlaDB.utils, "getJSON").and.callFake(function() {
+          throw new Error('Invalid URL');
+        });
+              
+        return lowla.load('http://lowla.io/my-data.json')
+          .then(function () {
+             expect(false).toBeTrue();
+          }, function (err) {
+             expect(err).toBeDefined();
+             expect(err).toMatch(/Invalid URL/);
+          })
+          .then(function () {
+            return lowla.load('http://lowla.io/my-data.json', function (err) {
+              expect(err).toBeDefined();
+              expect(err).toMatch(/Invalid URL/);
+            });
+          })
+          .catch(function () {
+          });
+      });
+    });
+  });  
 };
