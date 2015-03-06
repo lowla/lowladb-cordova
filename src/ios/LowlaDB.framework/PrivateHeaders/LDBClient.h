@@ -10,9 +10,13 @@
 @class LDBDb;
 @class LDBClient;
 
+extern NSString * LDBClientDidChangeCollectionNotification;
+
 @interface LDBClient : NSObject
 
 @property (readonly) NSString *version;
+
++ (void)enableNotifications:(BOOL)enable;
 
 - (void)dropDatabase:(NSString *)dbName;
 - (LDBDb *)getDatabase:(NSString *)dbName;

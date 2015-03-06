@@ -2,7 +2,19 @@
 
 #import "LowlaDB/LowlaDB.h"
 
+@interface LDBCordova ()
+@property NSMutableDictionary *liveCursors;
+@end
+
 @implementation LDBCordova
+
+- (void) pluginInitialize
+{
+    _liveCursors = [NSMutableDictionary dictionary];
+    [LDBClient enableNotifications:YES];
+    NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
+    [nc addObserver:self selector:@selector(notifyLive:) name:LDBClientDidChangeCollectionNotification object:nil];
+}
 
 - (void) client_version:(CDVInvokedUrlCommand *)command
 {
@@ -309,4 +321,49 @@ static LDBCursor *convertCursorSpec(NSDictionary *cursorSpec) {
     }];
 }
 
+- (void) addLiveCursor:(NSString *)ns withCallback:(NSString *)callbackId
+{
+    NSMutableArray *arr = [self.liveCursors objectForKey:ns];
+    if (nil == arr) {
+        arr = [NSMutableArray array];
+        [self.liveCursors setObject:arr forKey:ns];
+    }
+    [arr addObject:callbackId];
+}
+
+- (void) notifyLive:(NSNotification *)notification
+{
+    NSString *ns = [[notification userInfo] objectForKey:@"ns"];
+    
+    NSMutableArray *arr = [self.liveCursors objectForKey:ns];
+    if (nil != arr) {
+        [arr enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+            CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"notify"];
+            [pluginResult setKeepCallbackAsBool:YES];
+            [self.commandDelegate sendPluginResult:pluginResult callbackId:obj];
+        }];
+    }
+}
+
+- (void) cursor_on:(CDVInvokedUrlCommand *)command
+{
+    [self.commandDelegate runInBackground:^{
+        NSDictionary *cursorSpec = [command argumentAtIndex:0 withDefault:nil andClass:[NSDictionary class]];
+        NSDictionary *coll = (NSDictionary *)[cursorSpec objectForKey:@"_collection"];
+        NSString *dbName = (NSString *)[coll objectForKey:@"dbName"];
+        NSString *collName = (NSString *)[coll objectForKey:@"collectionName"];
+        
+        CDVPluginResult *pluginResult;
+        if (dbName && collName) {
+            [self addLiveCursor:[NSString stringWithFormat:@"%@.%@", dbName, collName] withCallback:command.callbackId];
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"started"];
+            [pluginResult setKeepCallbackAsBool:YES];
+        }
+        else {
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Internal error: cursor has invalid structure"];
+        }
+        
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    }];
+}
 @end

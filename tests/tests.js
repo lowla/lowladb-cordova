@@ -837,6 +837,55 @@ exports.defineAutoTests = function() {
           });
       });
     });
+    
+    describe('on()', function () {
+      var spec = new JasmineThen.Spec(this);
+      
+      spec.it('can watch for changes on collections', function () {
+        var wrappedCallback = null;
+
+        var callback = function (err, cursor) {
+          wrappedCallback(err, cursor);
+        };
+
+        return Promise.resolve()
+          .then(function () {
+            return new Promise(function (resolve, reject) {
+              wrappedCallback = function (err, cursor) {
+                cursor.toArray().then(function (arr) {
+                  try {
+                    expect(arr.length).toEqual(3);
+                    resolve();
+                  }
+                  catch (err) {
+                    reject(err);
+                  }
+                });
+              };
+
+              coll.find({}).sort('a').on(callback);
+            });
+          })
+          .then(function () {
+            return new Promise(function (resolve, reject) {
+              wrappedCallback = function (err, cursor) {
+                cursor.toArray().then(function (arr) {
+                  try {
+                    expect(arr.length).toEqual(3);
+                    expect(arr[0].b).toEqual(5);
+                    resolve();
+                  }
+                  catch (e) {
+                    reject(e);
+                  }
+                });
+              };
+
+              coll.findAndModify({a: 1}, {$set: {b: 5}});
+            });
+          });
+      });
+    });
   });
   
   describe('LowlaDB Sync (Cordova)', function (done) {

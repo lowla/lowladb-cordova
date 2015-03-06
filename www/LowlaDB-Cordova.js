@@ -362,14 +362,18 @@ var exec = require('cordova/exec');
 
   function on(callback) {
     /* jshint validthis:true */
-    var coll = this._collection;
-    var key = coll.dbName + '.' + coll.collectionName;
-    if (!coll.lowla.liveCursors[key]) {
-      coll.lowla.liveCursors[key] = [];
-    }
-
-    coll.lowla.liveCursors[key].push({cursor: this, callback: callback});
-    callback(null, this);
+    var cursor = this;
+    
+    var successCallback = function (status) {
+      if (status === "started") {
+        callback(null, cursor);
+      }
+      else if (status === "notify") {
+        callback(null, cursor);
+      }
+    };
+    var failureCallback = function (err) {reject(err);};
+    exec(successCallback, failureCallback, 'LowlaDB', 'cursor_on', [cursor]);
   }
 
   function cloneWithOptions(options) {
