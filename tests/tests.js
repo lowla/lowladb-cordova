@@ -186,7 +186,7 @@ exports.defineAutoTests = function() {
 
       spec.it('prevents inserting $field names', function () {
         var coll = lowla.collection('dbName', 'CollName');
-        coll.insert({$field: 1})
+        return coll.insert({$field: 1})
           .then(function (docs) {
             expect(docs).toBeUndefined(); // Shouldn't reach here
           }, function (err) {
@@ -200,6 +200,8 @@ exports.defineAutoTests = function() {
               expect(err).toMatch(/\$field/);
             });
           })
+          .catch(function () {
+          });
       });
     });
     

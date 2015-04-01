@@ -7,19 +7,39 @@
 	<platform name="osx">
 	</platform>
 	<platform name="ios">
-        <config-file target="config.xml" parent="/*">
-            <feature name="LowlaDB">
-                <param name="ios-package" value="LDBCordova"/>
-            </feature>
-        </config-file>
+    <config-file target="config.xml" parent="/*">
+      <feature name="LowlaDB">
+        <param name="ios-package" value="LDBCordova"/>
+      </feature>
+    </config-file>
 
+    <header-file src="src/ios/LDBCordova.h" />
+    <source-file src="src/ios/LDBCordova.m" />
 
-        <header-file src="src/ios/LDBCordova.h" />
-        <source-file src="src/ios/LDBCordova.m" />
-
-        <framework src="src/ios/LowlaDB.framework" custom="true"/>
-
+    <framework src="src/ios/LowlaDB.framework" custom="true"/>
 	</platform>
+  
+	<platform name="android">
+    <config-file target="config.xml" parent="/*">
+      <feature name="LowlaDB">
+        <param name="android-package" value="io.lowla.lowladb.LDBCordova" />
+      </feature>
+    </config-file>
+
+    <source-file src="src/android/LDBCordova.java" target-dir="src/io/lowla/lowladb" /> 
+      
+    <source-file src="src/android/lowladb-android/LDBClient.java" target-dir="src/io/lowla/lowladb" />
+    <source-file src="src/android/lowladb-android/LDBCollection.java" target-dir="src/io/lowla/lowladb" />
+    <source-file src="src/android/lowladb-android/LDBCursor.java" target-dir="src/io/lowla/lowladb" />
+    <source-file src="src/android/lowladb-android/LDBDatabase.java" target-dir="src/io/lowla/lowladb" />
+    <source-file src="src/android/lowladb-android/LDBObject.java" target-dir="src/io/lowla/lowladb" />
+    <source-file src="src/android/lowladb-android/LDBObjectBuilder.java" target-dir="src/io/lowla/lowladb" />
+    <source-file src="src/android/lowladb-android/LDBObjectId.java" target-dir="src/io/lowla/lowladb" />
+    <source-file src="src/android/lowladb-android/LDBWriteResult.java" target-dir="src/io/lowla/lowladb" />
+    <source-file src="src/android/lowladb-android/Integration.java" target-dir="src/io/lowla/lowladb/platform/android" />
+    <source-file src="src/android/lowladb-android/liblowladbjni.so" target-dir="src/main/jniLibs/armeabi" />
+  </platform>
+  
   <js-module name="LowlaDB" src="www/LowlaDB-Cordova.js">
     <clobbers target="LowlaDB" />
   </js-module>

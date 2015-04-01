@@ -372,7 +372,7 @@ var exec = require('cordova/exec');
         callback(null, cursor);
       }
     };
-    var failureCallback = function (err) {reject(err);};
+    var failureCallback = function (err) {callback(err);};
     exec(successCallback, failureCallback, 'LowlaDB', 'cursor_on', [cursor]);
   }
 
