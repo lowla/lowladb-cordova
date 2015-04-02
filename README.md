@@ -1,6 +1,6 @@
 # LowlaDB Cordova Plugin
 
-The LowlaDB Cordova plugin provides a native implementation of (LowlaDB)[http://www.github.com/lowla/lowladb-json-database] offering greatly improved performance and scalability on mobile devices. It is fully API-compatible with the javascript implementation and, other than necessary changes required by Cordova, web applications will run unchanged.
+The LowlaDB Cordova plugin provides a native implementation of [LowlaDB](http://www.github.com/lowla/lowladb-json-database) offering greatly improved performance and scalability on mobile devices. It is fully API-compatible with the javascript implementation and, other than necessary changes required by Cordova, web applications will run unchanged.
 
 It is currently under development for iOS and Android.
 
