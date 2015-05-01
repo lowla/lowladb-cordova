@@ -80,6 +80,51 @@
     }];
 }
 
+- (void) db_sync:(CDVInvokedUrlCommand *)command
+{
+    [self.commandDelegate runInBackground:^{
+        NSString *server = [command argumentAtIndex:0 withDefault:nil andClass:[NSString class]];
+        if (server) {
+            [LDBClient sync:server notify:^(LDBSyncStatus status, NSString *message) {
+                CDVPluginResult *pluginResult;
+                
+                switch (status) {
+                    case LDBSyncStatus_PUSH_STARTED:
+                        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"pushBegin"];
+                        [pluginResult setKeepCallbackAsBool:YES];
+                        break;
+                    case LDBSyncStatus_PUSH_ENDED:
+                        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"pushEnd"];
+                        [pluginResult setKeepCallbackAsBool:YES];
+                        break;
+                    case LDBSyncStatus_PULL_STARTED:
+                        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"pullBegin"];
+                        [pluginResult setKeepCallbackAsBool:YES];
+                        break;
+                    case LDBSyncStatus_PULL_ENDED:
+                        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"pullEnd"];
+                        [pluginResult setKeepCallbackAsBool:YES];
+                        break;
+                    case LDBSyncStatus_WARNING:
+                        // Don't do anything yet
+                        break;
+                    case LDBSyncStatus_ERROR:
+                        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:message];
+                        break;
+                    case LDBSyncStatus_OK:
+                        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+                        break;
+                }
+                [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+            }];
+        }
+        else {
+            CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"No server specified"];
+            [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+        }
+    }];
+}
+
 - (void) collection_findAndModify:(CDVInvokedUrlCommand *)command
 {
     [self.commandDelegate runInBackground:^{

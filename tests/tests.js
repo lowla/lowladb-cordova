@@ -1,4 +1,92 @@
 exports.defineAutoTests = function() {
+  
+  describe('LowlaDB (Cordova)', function (done) {
+    var spec = new JasmineThen.Spec(this);
+
+    spec.beforeEach(function () {
+      window.lowla = new LowlaDB();
+    });
+    
+    spec.afterEach(function () {
+      lowla.close();
+    });
+    
+    describe('Events', function(done) {
+      var spec = new JasmineThen.Spec(this);
+
+      spec.it('can register and receive a single event', function () {
+        var cb = jasmine.createSpy('cb');
+        lowla.on('myEvent', cb);
+        lowla.emit('myEvent');
+        expect(cb.calls.count()).toEqual(1);
+        lowla.emit('myEvent');
+        expect(cb.calls.count()).toEqual(2);
+      });
+
+      spec.it('can register multiple listeners to one event', function () {
+        var cb1 = jasmine.createSpy('cb1');
+        var cb2 = jasmine.createSpy('cb2');
+        lowla.on('myEvent', cb1);
+        lowla.on('myEvent', cb2);
+        lowla.emit('myEvent');
+        expect(cb1.calls.count()).toEqual(1);
+        expect(cb2.calls.count()).toEqual(1);
+        lowla.emit('myEvent');
+        expect(cb1.calls.count()).toEqual(2);
+        expect(cb2.calls.count()).toEqual(2);
+      });
+
+      spec.it('can register multiple events', function () {
+        var cb1 = jasmine.createSpy('cb1');
+        var cb2 = jasmine.createSpy('cb2');
+        lowla.on('myEvent', cb1);
+        lowla.on('myEvent2', cb2);
+        lowla.emit('myEvent');
+        expect(cb1.calls.count()).toEqual(1);
+        expect(cb2.calls.count()).toEqual(0);
+        lowla.emit('myEvent2');
+        expect(cb1.calls.count()).toEqual(1);
+        expect(cb2.calls.count()).toEqual(1);
+      });
+
+      spec.it('can remove a listener from an event', function () {
+        var cb1 = jasmine.createSpy('cb1');
+        var cb2 = jasmine.createSpy('cb2');
+        lowla.on('myEvent', cb1);
+        lowla.on('myEvent', cb2);
+        lowla.emit('myEvent');
+        expect(cb1.calls.count()).toEqual(1);
+        expect(cb2.calls.count()).toEqual(1);
+        lowla.off('myEvent', cb1);
+        lowla.emit('myEvent');
+        expect(cb1.calls.count()).toEqual(1);
+        expect(cb2.calls.count()).toEqual(2);
+      });
+
+      spec.it('can remove all listeners from an event', function () {
+        var cb1 = jasmine.createSpy('cb1');
+        var cb2 = jasmine.createSpy('cb2');
+        var cb3 = jasmine.createSpy('cb3');
+        lowla.on('myEvent', cb1);
+        lowla.on('myEvent', cb2);
+        lowla.on('myEvent3', cb3);
+        lowla.emit('myEvent');
+        expect(cb1.calls.count()).toEqual(1);
+        expect(cb2.calls.count()).toEqual(1);
+        expect(cb3.calls.count()).toEqual(0);
+        lowla.emit('myEvent3');
+        expect(cb3.calls.count()).toEqual(1);
+        lowla.off('myEvent');
+        lowla.emit('myEvent');
+        expect(cb1.calls.count()).toEqual(1);
+        expect(cb2.calls.count()).toEqual(1);
+        expect(cb3.calls.count()).toEqual(1);
+        lowla.emit('myEvent3');
+        expect(cb3.calls.count()).toEqual(2);
+      });
+    });
+  });
+  
   describe('LowlaDB DB (Cordova)', function (done) {
     var spec = new JasmineThen.Spec(this);
 
@@ -928,6 +1016,28 @@ exports.defineAutoTests = function() {
     
     spec.afterEach(function () {
       lowla.close();
+    });
+    
+    describe('Sync', function () {
+      var spec = new JasmineThen.Spec(this);
+
+      spec.it('fails cleanly with a bad url', function () {
+        var cbBegin = jasmine.createSpy('cbBegin');
+        var cbEnd = jasmine.createSpy('cbEnd');
+
+        lowla.on('syncBegin', cbBegin);
+        lowla.on('syncEnd', cbEnd);
+
+        return lowla.sync('http://localhost:3')
+          .then(function () {
+            expect(false).toBeTrue();
+          })
+          .catch(function (err) {
+            expect(err).toBeDefined();
+            expect(cbBegin.calls.count()).toEqual(1);
+            expect(cbEnd.calls.count()).toEqual(1);
+          });
+      });
     });
     
     describe('Load', function () {

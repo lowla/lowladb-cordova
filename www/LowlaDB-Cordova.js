@@ -6,7 +6,11 @@ var exec = require('cordova/exec');
   LowlaDB.prototype.close = close;
   LowlaDB.prototype.collection = collection;
   LowlaDB.prototype.db = db;
+  LowlaDB.prototype.emit = emit;
   LowlaDB.prototype.load = load;
+  LowlaDB.prototype.on = on;
+  LowlaDB.prototype.off = off;
+  LowlaDB.prototype.sync = sync;
 
   // Private API
   LowlaDB._defaultOptions = {};
@@ -25,7 +29,6 @@ var exec = require('cordova/exec');
     });
 
     this.events = {};
-    this.liveCursors = {};  
   }
 
   function db(dbName) {
@@ -71,6 +74,121 @@ var exec = require('cordova/exec');
         }
         throw e;
       });
+  }
+  
+  function on(eventName, callback) {
+    /* jshint validthis: true */
+    var lowlaEvents = this.events;
+    if (lowlaEvents[eventName]) {
+      lowlaEvents[eventName].push(callback);
+    }
+    else {
+      lowlaEvents[eventName] = [callback];
+    }
+  }
+
+  function off(eventName, callback) {
+    /* jshint validthis: true */
+    var lowlaEvents = this.events;
+    if (!callback) {
+      if (!eventName) {
+        this.events = {};
+      }
+      else {
+        delete lowlaEvents[eventName];
+      }
+    }
+    else if (lowlaEvents[eventName]) {
+      var index = lowlaEvents[eventName].indexOf(callback);
+      if (-1 !== index) {
+        lowlaEvents[eventName].splice(index, 1);
+      }
+    }
+  }
+  
+  function emit() {
+    /* jshint validthis: true */
+    var args = Array.prototype.slice.call(arguments);
+    var eventName = args.shift();
+    var lowlaEvents = this.events;
+    if (lowlaEvents[eventName]) {
+      lowlaEvents[eventName].forEach(function (listener) {
+        listener.apply(listener, args);
+      });
+    }
+  }
+  
+  function sync(serverUrl, options) {
+    /* jshint validthis: true */
+    var lowla = this;
+    options = options || {};
+    if (options && -1 === options.pollFrequency) {
+      return;
+    }
+
+    var socketIo = (options.io || window.io) && (options.socket || options.socket === undefined);
+    if (socketIo && !options.pollFrequency) {
+      var theIo = (options.io || window.io);
+      var pushPullFn = LowlaDB.utils.debounce(pushPull, 250);
+      var socket = theIo.connect(serverUrl);
+      socket.on('changes', function () {
+        pushPullFn();
+      });
+      socket.on('reconnect', function () {
+        pushPullFn();
+      });
+      lowla.on('_pending', function () {
+        pushPullFn();
+      });
+    }
+
+    function pushPull() {
+      if (lowla._syncing) {
+        lowla._pendingSync = true;
+        return;
+      }
+
+      lowla._syncing = true;
+      lowla.emit('syncBegin');
+      return new Promise(function (resolve, reject) {
+        var successCallback = function (message) {
+          if (message) {
+            lowla.emit(message);
+          }
+          else {
+            resolve();
+          }
+        };
+        var failureCallback = function (err) {reject(err);};
+        exec(successCallback, failureCallback, 'LowlaDB', 'db_sync', [serverUrl]);
+      })
+        .then(function () {
+          lowla._syncing = false;
+          lowla.emit('syncEnd');
+          if (lowla._pendingSync) {
+            lowla._pendingSync = false;
+            return pushPull();
+          }
+        }, function (err) {
+          lowla._syncing = lowla._pendingSync = false;
+          lowla.emit('syncEnd');
+          throw err;
+        });
+    }
+
+    return pushPull().then(function () {
+      if (options.pollFrequency) {
+        var pollFunc = function () {
+          pushPull().then(function () {
+            setTimeout(pollFunc, options.pollFrequency * 1000);
+          });
+        };
+
+        setTimeout(pollFunc, options.pollFrequency * 1000);
+      }
+    }, function (err) {
+      throw err;
+    });
   }
   
 })(module);
@@ -229,6 +347,9 @@ var exec = require('cordova/exec');
         else {
           doc = JSON.parse(doc);
         }
+        if (doc) {
+          coll.lowla.emit('_pending');
+        }
         if (callback) {
           callback(null, doc);
         }
@@ -252,6 +373,9 @@ var exec = require('cordova/exec');
     })
       .then(function (docs) {
         docs = docs.map(JSON.parse);
+        if (0 != docs.length) {
+          coll.lowla.emit('_pending');
+        }
         if (!LowlaDB.utils.isArray(arg)) {
           docs = docs.length ? docs[0] : null;
         }
@@ -293,6 +417,9 @@ var exec = require('cordova/exec');
       exec(successCallback, failureCallback, 'LowlaDB', 'collection_remove', [coll.dbName, coll.collectionName, filter]);
     })
       .then(function (count) {
+        if (0 != count) {
+          coll.lowla.emit('_pending');
+        }
         if (callback) {
           callback(null, count);
         }
@@ -323,7 +450,6 @@ var exec = require('cordova/exec');
   Cursor.prototype.toArray = toArray;
 
   Cursor.prototype.on = on;
-  Cursor.notifyLive = notifyLive;
   Cursor.prototype.cloneWithOptions = cloneWithOptions;
 
   ///////////////
@@ -347,17 +473,6 @@ var exec = require('cordova/exec');
         this._options[i] = options[i];
       }
     }
-  }
-
-  function notifyLive(coll) {
-    var key = coll.dbName + '.' + coll.collectionName;
-    if (!coll.lowla.liveCursors[key]) {
-      return;
-    }
-
-    coll.lowla.liveCursors[key].forEach(function (watcher) {
-      watcher.callback(null, watcher.cursor);
-    });
   }
 
   function on(callback) {
@@ -556,4 +671,26 @@ var exec = require('cordova/exec');
 
     return answer;
   };
+  
+  LowlaDB.utils.debounce = function (func, wait, immediate) {
+    var timeout;
+    return function () {
+      var context = this;
+      var args = arguments;
+      var later = function () {
+        timeout = null;
+        if (!immediate) {
+          func.apply(context, args);
+        }
+      };
+
+      var callNow = immediate && !timeout;
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+      if (callNow) {
+        func.apply(context, args);
+      }
+    };
+  };
+  
 })(module.exports);
