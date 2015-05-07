@@ -37,7 +37,7 @@
     <source-file src="src/android/lowladb-android/LDBObjectId.java" target-dir="src/io/lowla/lowladb" />
     <source-file src="src/android/lowladb-android/LDBWriteResult.java" target-dir="src/io/lowla/lowladb" />
     <source-file src="src/android/lowladb-android/Integration.java" target-dir="src/io/lowla/lowladb/platform/android" />
-    <source-file src="src/android/lowladb-android/liblowladbjni.so" target-dir="src/main/jniLibs/armeabi" />
+    <source-file src="src/android/lowladb-android/liblowladbjni.so" target-dir="libs/armeabi" />
   </platform>
   
   <js-module name="LowlaDB" src="www/LowlaDB-Cordova.js">

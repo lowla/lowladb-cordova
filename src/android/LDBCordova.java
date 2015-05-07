@@ -104,7 +104,7 @@ public class LDBCordova extends CordovaPlugin {
 
     abstract class CordovaOperation implements Runnable {
         @Override
-        public void run() {
+        public final void run() {
             try {
                 runOperation();
             }
@@ -129,11 +129,12 @@ public class LDBCordova extends CordovaPlugin {
 
     @Override
     protected void pluginInitialize() {
-        Integration.INSTANCE.setContext(this.cordova.getActivity().getApplicationContext());
+        Integration.INSTANCE.init(this.cordova.getActivity().getApplicationContext(), "LowlaDB");
 
         ops = new HashMap<String, Class<? extends CordovaOperation>>();
         ops.put("db_collectionNames", Db_CollectionNames.class);
         ops.put("db_dropDatabase", Db_DropDatabase.class);
+        ops.put("db_sync", Db_Sync.class);
         ops.put("collection_findAndModify", Collection_FindAndModify.class);
         ops.put("collection_insert", Collection_Insert.class);
         ops.put("collection_remove", Collection_Remove.class);
@@ -195,6 +196,53 @@ public class LDBCordova extends CordovaPlugin {
             LDBClient client = new LDBClient();
             client.dropDatabase(dbName);
             callbackContext.success();
+        }
+    }
+
+    class Db_Sync extends CordovaOperation {
+        @Override
+        protected void runOperation() throws JSONException {
+            String server = args.getString(0);
+            if (null == server) {
+                callbackContext.error("No server specified");
+                return;
+            }
+            LDBClient.sync(server, new LDBClient.SyncNotifier() {
+                @Override
+                public void notify(LDBClient.LDBSyncStatus status, String message) {
+                    PluginResult pluginResult = null;
+                    switch (status) {
+                        case PUSH_STARTED:
+                            pluginResult = new PluginResult(PluginResult.Status.OK, "pushBegin");
+                            pluginResult.setKeepCallback(true);
+                            break;
+                        case PUSH_ENDED:
+                            pluginResult = new PluginResult(PluginResult.Status.OK, "pushEnd");
+                            pluginResult.setKeepCallback(true);
+                            break;
+                        case PULL_STARTED:
+                            pluginResult = new PluginResult(PluginResult.Status.OK, "pullBegin");
+                            pluginResult.setKeepCallback(true);
+                            break;
+                        case PULL_ENDED:
+                            pluginResult = new PluginResult(PluginResult.Status.OK, "pullEnd");
+                            pluginResult.setKeepCallback(true);
+                            break;
+                        case WARNING:
+                            // Nothing for now
+                            break;
+                        case ERROR:
+                            pluginResult = new PluginResult(PluginResult.Status.ERROR, message);
+                            break;
+                        case OK:
+                            pluginResult = new PluginResult(PluginResult.Status.OK, (String)null);
+                            break;
+                    }
+                    if (null != pluginResult) {
+                        callbackContext.sendPluginResult(pluginResult);
+                    }
+                }
+            });
         }
     }
 

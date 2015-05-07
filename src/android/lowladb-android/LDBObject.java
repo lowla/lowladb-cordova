@@ -54,6 +54,8 @@ public class LDBObject {
                 builder.appendLong(key, (Long) value);
             } else if (value instanceof Double) {
                 builder.appendDouble(key, (Double) value);
+            } else if (value instanceof Boolean) {
+                builder.appendBool(key, (Boolean) value);
             } else {
                 throw new IllegalArgumentException("Unsupported object type '" + value.getClass().toString() + "' for key '" + key + "'");
             }
