@@ -488,7 +488,17 @@ var exec = require('cordova/exec');
       }
     };
     var failureCallback = function (err) {callback(err);};
-    exec(successCallback, failureCallback, 'LowlaDB', 'cursor_on', [cursor]);
+    var guid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {var r = Math.random()*16|0,v=c=='x'?r:r&0x3|0x8;return v.toString(16);});
+    exec(successCallback, failureCallback, 'LowlaDB', 'cursor_on', [cursor, guid]);
+ 
+    return function () {
+       return new Promise(function (resolve, reject) {
+          var successCallback = function () {resolve();};
+          var failureCallback = function () {reject();};
+          exec(successCallback, failureCallback, 'LowlaDB', 'cursor_off', [guid]);
+       });
+    }
+ 
   }
 
   function cloneWithOptions(options) {

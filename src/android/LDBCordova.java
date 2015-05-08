@@ -24,6 +24,25 @@ import io.lowla.lowladb.platform.android.Integration;
 public class LDBCordova extends CordovaPlugin {
     private Map<String, Class<? extends CordovaOperation>> ops;
     private Map<String, List<CallbackContext>> liveCursors;
+    private Map<String, CursorCallbackInfo> cursorLookup;
+
+    static class CursorCallbackInfo {
+        CursorCallbackInfo(String ns, CallbackContext callbackContext) {
+            this.ns = ns;
+            this.callbackContext = callbackContext;
+        }
+
+        String getNs() {
+            return this.ns;
+        }
+
+        CallbackContext getCallbackContext() {
+            return this.callbackContext;
+        }
+
+        private String ns;
+        private CallbackContext callbackContext;
+    }
 
     static class MapAdapter implements Map<String, Object> {
         private JSONObject obj;
@@ -140,10 +159,12 @@ public class LDBCordova extends CordovaPlugin {
         ops.put("collection_remove", Collection_Remove.class);
         ops.put("cursor_count", Cursor_Count.class);
         ops.put("cursor_each", Cursor_Each.class);
+        ops.put("cursor_off", Cursor_Off.class);
         ops.put("cursor_on", Cursor_On.class);
         ops.put("lowla_load", Lowla_Load.class);
 
         liveCursors = new HashMap<String, List<CallbackContext>>();
+        cursorLookup = new HashMap<String, CursorCallbackInfo>();
 
         LDBClient.enableNotifications(true);
         LDBClient.addCollectionChangedListener(new LDBClient.CollectionChangedListener() {
@@ -456,13 +477,33 @@ public class LDBCordova extends CordovaPlugin {
         }
     }
 
-    private void addLiveCursor(String ns, CallbackContext callbackContext) {
+    private void addLiveCursor(String ns, CallbackContext callbackContext, String guid) {
         List<CallbackContext> callbacks = liveCursors.get(ns);
         if (null == callbacks) {
             callbacks = new ArrayList<CallbackContext>();
             liveCursors.put(ns, callbacks);
         }
         callbacks.add(callbackContext);
+        cursorLookup.put(guid, new CursorCallbackInfo(ns, callbackContext));
+    }
+
+    private CallbackContext removeLiveCursor(String guid) {
+        CursorCallbackInfo cci = cursorLookup.get(guid);
+        if (null == cci) {
+            return null;
+        }
+        List<CallbackContext> callbacks = liveCursors.get(cci.getNs());
+        if (null == callbacks) {
+            return null;
+        }
+        CallbackContext prev = cci.getCallbackContext();
+        for (int i = 0 ; i < callbacks.size() ; ++i) {
+            if (callbacks.get(i).getCallbackId().equals(prev.getCallbackId())) {
+                callbacks.remove(i);
+                break;
+            }
+        }
+        return cci.getCallbackContext();
     }
 
     private void notifyLive(String ns) {
@@ -480,14 +521,35 @@ public class LDBCordova extends CordovaPlugin {
         @Override
         protected void runOperation() throws JSONException {
             JSONObject cursorSpec = args.getJSONObject(0);
+            String guid = args.getString(1);
             JSONObject collSpec = cursorSpec.getJSONObject("_collection");
             String dbName = collSpec.getString("dbName");
             String collName = collSpec.getString("collectionName");
 
-            addLiveCursor(dbName + "." + collName, callbackContext);
+            addLiveCursor(dbName + "." + collName, callbackContext, guid);
             PluginResult pluginResult = new PluginResult(PluginResult.Status.OK, "started");
             pluginResult.setKeepCallback(true);
             callbackContext.sendPluginResult(pluginResult);
+        }
+    }
+
+    class Cursor_Off extends CordovaOperation {
+        @Override
+        protected void runOperation() throws JSONException {
+            String guid = args.getString(0);
+            if (null == guid) {
+                callbackContext.error("Internal error: guid is required");
+                return;
+            }
+
+            CallbackContext oldCallbackContext = removeLiveCursor(guid);
+            // Clear out the old callback by calling it one final time with keepCallback=NO
+            if (null != oldCallbackContext) {
+                oldCallbackContext.success("finished");
+            }
+
+            // And then callback with us.
+            callbackContext.success();
         }
     }
 

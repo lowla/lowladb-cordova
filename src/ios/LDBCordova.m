@@ -4,6 +4,7 @@
 
 @interface LDBCordova ()
 @property NSMutableDictionary *liveCursors;
+@property NSMutableDictionary *cursorLookup;
 @end
 
 @implementation LDBCordova
@@ -11,6 +12,7 @@
 - (void) pluginInitialize
 {
     _liveCursors = [NSMutableDictionary dictionary];
+    _cursorLookup = [NSMutableDictionary dictionary];
     [LDBClient enableNotifications:YES];
     NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
     [nc addObserver:self selector:@selector(notifyLive:) name:LDBClientDidChangeCollectionNotification object:nil];
@@ -366,7 +368,7 @@ static LDBCursor *convertCursorSpec(NSDictionary *cursorSpec) {
     }];
 }
 
-- (void) addLiveCursor:(NSString *)ns withCallback:(NSString *)callbackId
+- (void) addLiveCursor:(NSString *)ns withCallback:(NSString *)callbackId andGuid:(NSString *)guid
 {
     NSMutableArray *arr = [self.liveCursors objectForKey:ns];
     if (nil == arr) {
@@ -374,6 +376,24 @@ static LDBCursor *convertCursorSpec(NSDictionary *cursorSpec) {
         [self.liveCursors setObject:arr forKey:ns];
     }
     [arr addObject:callbackId];
+    [self.cursorLookup setObject:@{@"ns":ns, @"callbackId":callbackId} forKey:guid];
+}
+
+- (NSString *)removeLiveCursor:(NSString *)guid
+{
+    NSDictionary *prev = (NSDictionary *)[self.cursorLookup objectForKey:guid];
+    if (nil == prev) {
+        return nil;
+    }
+    NSString *ns = [prev objectForKey:@"ns"];
+    NSString *callbackId = [prev objectForKey:@"callbackId"];
+    
+    NSMutableArray *arr = [self.liveCursors objectForKey:ns];
+    if (nil == arr) {
+        return nil;
+    }
+    [arr removeObject:callbackId];
+    return callbackId;
 }
 
 - (void) notifyLive:(NSNotification *)notification
@@ -394,13 +414,15 @@ static LDBCursor *convertCursorSpec(NSDictionary *cursorSpec) {
 {
     [self.commandDelegate runInBackground:^{
         NSDictionary *cursorSpec = [command argumentAtIndex:0 withDefault:nil andClass:[NSDictionary class]];
+        NSString *guid = [command argumentAtIndex:1 withDefault:nil andClass:[NSString class]];
+        
         NSDictionary *coll = (NSDictionary *)[cursorSpec objectForKey:@"_collection"];
         NSString *dbName = (NSString *)[coll objectForKey:@"dbName"];
         NSString *collName = (NSString *)[coll objectForKey:@"collectionName"];
         
         CDVPluginResult *pluginResult;
         if (dbName && collName) {
-            [self addLiveCursor:[NSString stringWithFormat:@"%@.%@", dbName, collName] withCallback:command.callbackId];
+            [self addLiveCursor:[NSString stringWithFormat:@"%@.%@", dbName, collName] withCallback:command.callbackId andGuid:guid];
             pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"started"];
             [pluginResult setKeepCallbackAsBool:YES];
         }
@@ -411,4 +433,30 @@ static LDBCursor *convertCursorSpec(NSDictionary *cursorSpec) {
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     }];
 }
+
+- (void) cursor_off:(CDVInvokedUrlCommand *)command
+{
+    [self.commandDelegate runInBackground:^{
+        NSString *guid = [command argumentAtIndex:0 withDefault:nil andClass:[NSString class]];
+        CDVPluginResult *pluginResult;
+        if (!guid) {
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Internal error: guid is required"];
+            [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+            return;
+        }
+        
+        NSString *oldCallbackId = [self removeLiveCursor:guid];
+        if (oldCallbackId) {
+            // Clear out the old callback by calling it one final time with keepCallback=NO
+            CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"finished"];
+            [pluginResult setKeepCallbackAsBool:NO];
+            [self.commandDelegate sendPluginResult:pluginResult callbackId:oldCallbackId];
+        }
+        
+        // And then callback with us.
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    }];
+}
+
 @end

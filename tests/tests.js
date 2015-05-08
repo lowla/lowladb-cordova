@@ -933,6 +933,7 @@ exports.defineAutoTests = function() {
       
       spec.it('can watch for changes on collections', function () {
         var wrappedCallback = null;
+        var offFn = null;
 
         var callback = function (err, cursor) {
           wrappedCallback(err, cursor);
@@ -953,7 +954,7 @@ exports.defineAutoTests = function() {
                 });
               };
 
-              coll.find({}).sort('a').on(callback);
+              offFn = coll.find({}).sort('a').on(callback);
             });
           })
           .then(function () {
@@ -971,6 +972,47 @@ exports.defineAutoTests = function() {
                 });
               };
 
+              coll.findAndModify({a: 1}, {$set: {b: 5}});
+            });
+          })
+          .then(function () {
+            return offFn();
+          });
+      });
+      
+      spec.it('can turn off a live cursor', function () {
+        var wrappedCallback = null;
+        var offFn = null;
+        
+        var callback = function (err, cursor) {
+          wrappedCallback(err, cursor);
+        };
+
+        return new Promise(function (resolve, reject) {
+          wrappedCallback = function (err, cursor) {
+            resolve();
+          };
+          offFn = coll.find({}).sort('a').on(callback);
+        })
+          .then(function () {
+            return new Promise(function (resolve, reject) {
+              // You can't wait for a callback to not be called so instead wait 1/2 second -
+              // if the callback is going to be called it should have happened by then.
+              wrappedCallback = function(err, cursor) {
+                reject("Callback should not have been called in cursor.off");
+              };
+              setTimeout(function () {resolve();}, 500);
+              offFn();
+            });
+          })
+          .then(function() {
+            return new Promise(function (resolve, reject) {
+              // You can't wait for a callback to not be called so instead wait 1/2 second -
+              // if the callback is going to be called it should have happened by then.
+              wrappedCallback = function(err, cursor) {
+                reject("Callback should not have been called after cursor.off");
+              };
+              setTimeout(function () {resolve();}, 500);
               coll.findAndModify({a: 1}, {$set: {b: 5}});
             });
           });
