@@ -2,14 +2,14 @@
 
 The LowlaDB Cordova plugin provides a native implementation of [LowlaDB](http://www.github.com/lowla/lowladb-json-database) offering greatly improved performance and scalability on mobile devices. It is fully API-compatible with the javascript implementation and, other than necessary changes required by Cordova, web applications will run unchanged.
 
-It is currently under development for iOS and Android.
+The plugin is supported on iOS and Android.
 
 # License
 The LowlaDB Cordova plugin is available under the MIT license.
 
 # Requirements
 To develop for iOS, you need a Mac running XCode 6.x or above. The resulting application requires iOS 8.x.
-To develop for Android, you need Android Studio 1.1. The plugin has not been tested with the older ADT tooling. The resulting application requires Android 4.0.3 or higher.
+To develop for Android, you need Android Studio 1.2. The plugin has not been tested with the older ADT tooling. The resulting application requires Android 4.0.3 or higher.
 
 ## Creating an iOS Project with LowlaDB
 ### 1. Create a new project
@@ -84,18 +84,19 @@ cordova plugin add io.lowla.lowladb
 ```
 
 ### 4. Import the project into Android Studio
-The Android tooling is in the process of migrating from Eclipse to the IntelliJ IDEA-based Android Studio. As such, both Android Studio and Cordova's support for Android are changing rapidly. These instructions apply to Android Studio 1.1.0 and the Cordova commmand line version 4.3.0.
+The Android tooling is in the process of migrating from Eclipse to the IntelliJ IDEA-based Android Studio. As such, both Android Studio and Cordova's support for Android are changing rapidly. These instructions apply to Android Studio 1.2.0 and the Cordova commmand line version 5.0.0.
 
-If you try to import the generated android project directly into Android Studio, you will get build errors as the dependency between the application and CordovaLib has not been set up correctly. To fix this, you need to perform a command-line build before importing the project into Android Studio. Specifically:
+Launch Android Studio and choose File|Import Project and select the LowlaTest/platforms/android folder. Do *not* select the LowlaTest folder - this will import and build but will not use the new, Gradle-based build.
+
+If you are using older versions of Android Studio or the Cordova CLI, you may get build errors after importing the project into Android Studio as the dependency between the application and CordovaLib has not been set up correctly. The best way to fix this is to upgrade to the latest
+versions of the tools, but if this isn't an option you can fix the problem by performing a command-line build before importing the project into Android Studio. Specifically:
 
 ```bash
 cd platforms/android
 ANDROID_BUILD=gradle ./cordova/build
 ```
 
-You can now launch Android Studio and choose File|Import Project and select the LowlaTest/platforms/android folder. Do *not* select the LowlaTest folder - this will import and build but will not use the new, Gradle-based build.
-
-You should now be able to build the project cleanly.
+To be clear, this step is no longer required with Cordova 5.0/Android Studio 1.2.
 
 ### 5. Add some test code
 Navigate to www/js/index.js in the project tree. Under the line
@@ -162,7 +163,7 @@ Changes need to flow through from the lowest level (liblowladb) to the highest (
 - Adding any new wrappers to lowladb-cordova/src/ios/LDBCordova.m
 - Rebuilding the lowladb-android-lib project and copying the .so and .java files to lowladb-cordova/src/android/lowladb-android
 - [Optional: If the above step created any new .java files, they need to be added to lowladb-cordova/plugin.xml]
-- Adding any new wrappers to lowladb-cordova/src/anddroid/LDBCordova.java
+- Adding any new wrappers to lowladb-cordova/src/android/LDBCordova.java
 - Adding any new public APIs/fixes to lowladb-cordova/www/LowlaDB-Cordova.js
 
 Once those changes have been made, you need to redeploy the plugins
