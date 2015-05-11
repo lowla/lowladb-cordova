@@ -1,0 +1,29 @@
+{
+  "name": "lowladb-cordova",
+  "version": "0.0.3",
+  "description": "LowlaDB plugin for Apache Cordova",
+  "cordova": {
+    "id": "lowladb-cordova",
+    "platforms": [
+      "ios",
+      "android"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lowla/lowladb-cordova.git"
+  },
+  "keywords": [
+    "json",
+    "database",
+    "ecosystem:cordova",
+    "cordova-ios",
+    "cordova-android"
+  ],
+  "author": "mark@lowla.io",
+  "license": "MIT License",
+  "bugs": {
+    "url": "https://github.com/lowla/lowladb-cordova/issues"
+  },
+  "homepage": "https://github.com/lowla/lowladb-cordova#readme"
+}

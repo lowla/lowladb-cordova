@@ -8,8 +8,10 @@ The plugin is supported on iOS and Android.
 The LowlaDB Cordova plugin is available under the MIT license.
 
 # Requirements
+The plugin is distributed via npm rather than the Cordova Plugin Registry and can be installed using the `cordova` command line client version 5.0 or above.
 To develop for iOS, you need a Mac running XCode 6.x or above. The resulting application requires iOS 8.x.
 To develop for Android, you need Android Studio 1.2. The plugin has not been tested with the older ADT tooling. The resulting application requires Android 4.0.3 or higher.
+
 
 ## Creating an iOS Project with LowlaDB
 ### 1. Create a new project
@@ -25,7 +27,7 @@ cordova platform add ios
 
 ### 3. Add the plugin to the project
 ```bash
-cordova plugin add io.lowla.lowladb
+cordova plugin add lowladb-cordova
 ```
 
 ### 4. Update project settings
@@ -80,7 +82,7 @@ cordova platform add android
 
 ### 3. Add the plugin to the project
 ```bash
-cordova plugin add io.lowla.lowladb
+cordova plugin add lowladb-cordova
 ```
 
 ### 4. Import the project into Android Studio
