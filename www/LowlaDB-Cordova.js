@@ -452,6 +452,9 @@ var exec = require('cordova/exec');
   Cursor.prototype.on = on;
   Cursor.prototype.cloneWithOptions = cloneWithOptions;
 
+  // Private API
+  Cursor._stripCursor = _stripCursor;
+
   ///////////////
 
   function Cursor(collection, filter, options) {
@@ -489,7 +492,7 @@ var exec = require('cordova/exec');
     };
     var failureCallback = function (err) {callback(err);};
     var guid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {var r = Math.random()*16|0,v=c=='x'?r:r&0x3|0x8;return v.toString(16);});
-    exec(successCallback, failureCallback, 'LowlaDB', 'cursor_on', [cursor, guid]);
+    exec(successCallback, failureCallback, 'LowlaDB', 'cursor_on', [_stripCursor(cursor), guid]);
  
     return function () {
        return new Promise(function (resolve, reject) {
@@ -547,7 +550,7 @@ var exec = require('cordova/exec');
         }
       };
       var failureCallback = function (err) {reject(err);};
-      exec(successCallback, failureCallback, 'LowlaDB', 'cursor_each', [cursor]);
+      exec(successCallback, failureCallback, 'LowlaDB', 'cursor_each', [_stripCursor(cursor)]);
     })
       .catch(function (err) {
         callback(err);
@@ -591,7 +594,7 @@ var exec = require('cordova/exec');
     return new Promise(function(resolve, reject) {
       var successCallback = function (count) {resolve(count);};
       var failureCallback = function (err) {reject(err);};
-      exec(successCallback, failureCallback, 'LowlaDB', 'cursor_count', [cursor]);
+      exec(successCallback, failureCallback, 'LowlaDB', 'cursor_count', [_stripCursor(cursor)]);
     })
       .then(function(count) {
         if (callback) {
@@ -606,6 +609,21 @@ var exec = require('cordova/exec');
         throw e;
       });
   }
+  
+  // Returns a 'safe copy' of the cursor containing only the properties we need to pass down to native code.
+  // We want to keep this object simple since it will be JSONed through the Cordova bridge.
+  function _stripCursor(cursor) {
+    var answer = {
+      _collection : {
+        dbName : cursor._collection.dbName,
+        collectionName : cursor._collection.collectionName
+      },
+      _options : cursor._options,
+      _filter : cursor._filter
+    }
+    return answer;
+  }
+
 })(module.exports);
 
 // Utils

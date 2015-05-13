@@ -716,6 +716,22 @@ exports.defineAutoTests = function() {
     describe('toArray()', function () {
       var spec = new JasmineThen.Spec(this);
       
+      spec.it('can handle circular references in the cursor object', function () {
+        var cursor = coll.find({});
+        lowla.extraProp = lowla;
+        return cursor.toArray()
+          .then(function () {
+            return coll.count();
+          })
+          .then(function () {
+            delete lowla.extraProp;
+          })
+          .catch(function(err) {
+            delete lowla.extraProp;
+            throw err;
+          });
+      });
+
       spec.it('can find no matching documents', function () {
         var cursor = coll.find({z: 1});
         cursor
